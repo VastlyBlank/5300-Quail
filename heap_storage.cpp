@@ -55,7 +55,7 @@ void SlottedPage::put(RecordID record_id, const Dbt &data) throw(DbBlockNoRoomEr
 	u16 new_size = data->get_size();
 	if (new_size > size){
 		u16 needed = new_size-size;
-		if (!has_room)
+		if (!has_room(new_size))
 			throw DbBlockNoRoomError("not enough room for resized record");
 		slide(loc+new_size, loc+size);//slide left for more room
 		memcpy(this->address(loc-needed), data->get_data(), new_size);//loc is right-justified
@@ -158,24 +158,30 @@ HeapFile::HeapFile(std::string name) : DbFile(name), dbfilename(""), last(0), cl
 
 }
 ~HeapFile::HeapFile() {
-
+//may not need
 }
 
 
 void HeapFile::create(void){
-
+	this->db_open(bdb.DB_CREATE | bdb.DB.EXCL);
+	DbBlock block = this->get_new();//get new returns a SlottedPage
+	this->put(block);
 }
 
 void HeapFile::drop(void){
-
+	close();
+	//stdio
+	remove(this->dbfilename);
 }
 
 void  HeapFile::open(void){
-
+	this->db_open();
+	//block size
 }
 
 void HeapFile::close(void){
-
+	this->db.close();
+	closed = true;
 }
 
 SlottedPage* HeapFile::get_new(void){
@@ -194,25 +200,39 @@ SlottedPage* HeapFile::get_new(void){
 }
 
 SlottedPage* HeapFile::get(BlockID block_id){
-
+	char block[BLOCK_SZ];
+	std::memset(block, 0, sizeof(block));
+	Dbt data(block, sizeof(block));
+	Dbt key(&block_id, sizeof(block_id));
+	this->db.get(nullptr, &key, &data,0);
+	return new SlottedPage(data, block_id, false);
 }
 
 void HeapFile::put(DbBlock* block){
-
+	BlockID id = block->get_block_id();
+	Dbt key(&id, sizeof(id);
+	this->db.put(nullptr, &key, block->get_block(), 0);
 }
 
 BlockIDs* HeapFile::block_ids(){
-
+	BlockIDs temp = new BlockIDs();//vector
+	for(int i = 1; i <=this->last; i++)
+		temp->push_back(i);
+	return temp;
+	
 }
-
-
-u_int32_t HeapFile::get_last_block_id() {return last;}
-
 void HeapFile::db_open(uint flags=0){
-
+	if (!this->closed){
+		return;
+	}
+	this->db = bdb.DB();
+	this->db.set_re_len(this->block_size);
+	this->dbfilename=_DB_ENV + this->name + ".db";
+	this->db.open(dbfilename, None, DB_RECNO, flags);
+	//stat line
+	this->last=db.stat(bdb.DB_FAST_STAT)['ndata'];
+	this->closed = false;
 }
-
-
 
 /**
  * @class HeapTable - Heap storage engine (implementation of DbRelation)
