@@ -8,7 +8,9 @@
  */
 
 #include "heap_storage.h"
+#include<cstring>
 
+using namespace std;
 /**
  * @class SlottedPage - heap file implementation of DbBlock
  *
@@ -151,87 +153,126 @@ void HeapFile::db_open(uint flags=0){
  * @class HeapTable - Heap storage engine (implementation of DbRelation)
  */
 
-HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes ){
+HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes){
 
 }
 
-~HeapTable::HeapTable() {
+HeapTable::~HeapTable() {
 
 }
 
 void HeapTable::create(){
-
-}
-
-void HeapTable::create_if_not_exists(){
-
+	this->file.create();
 }
 
 void HeapTable::drop(){
-
+	this->file.drop();
 }
 
 void HeapTable::open(){
-
+	this->file.open();
 }
 
 void HeapTable::close(){
+	this->file.close();
+}
 
+void HeapTable::create_if_not_exists() {
+	try {
+		this->open();
+	} catch (DbException& exc) {
+		this->create();
+	}
 }
 
 Handle HeapTable::insert(const ValueDict* row){
-
+this->open();
+	return this->append(this->validate(row));
 }
 
 void HeapTable::update(const Handle handle, const ValueDict* new_values){
-
+	cerr << "FIXME" << endl;
 }
 
 void HeapTable::del(const Handle handle){
-
+	cerr << "FIXME" << endl;
 }
 
-Handles* HeapTable::select(){
+//Handles* HeapTable::select(){
 
-}
+//}
 
 //
 Handles* HeapTable::select(const ValueDict* where){
 	Handles* handles = new Handles();
-	BlockIds* block_ids = file.block_ids();
-	for (auto const& block_id: *block_ids){
-		SlottedPage *block = file.get(block_id);
+	BlockIDs* blockIDs = file.block_ids();
+	for (auto const& blockID: *blockIDs){
+		SlottedPage *block = file.get(blockID);
 		RecordIDs* record_ids = block->ids();
 		for (auto const& record_id: *record_ids)
-			handles->push_back(Handle(block_id, record_id));
+			handles->push_back(Handle(blockID, record_id));
 		delete record_ids;
 		delete block;
 	}
-	delete block_ids;
+	delete blockIDs;
 	return handles;
 }
 
-ValueDict* HeapTable::project(Handle handle){
-
-}
+//ValueDict* HeapTable::project(Handle handle){
+//   cerr << "FIXME" << endl;
+//}	
 
 ValueDict* HeapTable::project(Handle handle, const ColumnNames* column_names){
-
+	BlockID block_id = handle.first;
+	RecordID record_id = handle.second;
+	SlottedPage* block = this->file.get(block_id);
+   Dbt* data = block->get(record_id);
+	ValueDict* row = this->unmarshal(data);
+   ValueDict* toReturn;
+	if (column_names == NULL) {
+		return row;
+	} else {
+		toReturn = new ValueDict();
+		for (auto const& column_name: *column_names) {
+			ValueDict::const_iterator column = row->find(column_name);
+         toReturn->insert(pair<Identifier,Value>(column->first, column->second));
+		}
+	}
+	return toReturn;
 }
 
 
-ValueDict* HeapTable::validate(const ValueDict* row){
-
+ValueDict* HeapTable::validate(const ValueDict* row) {
+	ValueDict* full_row = new ValueDict;
+	for (auto const& column_name: this->column_names) {
+		ValueDict::const_iterator column = row->find(column_name);
+		if (column == row->end()) {
+			cerr << "Dont know how to handle NULLs, defaults, etc. yet" << endl;
+		} else {
+			full_row->insert(pair<Identifier,Value>(column->first, column->second));
+		}
+	}
+	return full_row;
 }
 
 Handle HeapTable::append(const ValueDict* row){
-
+	Dbt* data = this->marshal(row);
+	SlottedPage* block = this->file.get(this->file.get_last_block_id());
+	RecordID record_id;
+   try {
+		record_id = block->add(data);
+	} catch (DbBlockNoRoomError) {
+		block = this->file.get_new();
+		record_id = block->add(data);
+	}
+	this->file.put(block);
+	return Handle(this->file.get_last_block_id(), record_id);
 }
 
 //return the bits to go in the file
 //caller responsible for freeing the returned Dbt and its enclosed ret->get_data(), author: K. Lundeen
 Dbt* HeapTable::marshal(const ValueDict* row){
-	char *bytes = new char[DbBlock::Block_SZ]; //more than needed
+	char *bytes = new char[DbBlock::BLOCK_SZ]; //more than needed
 	uint offset = 0;
 	uint col_num = 0;
 	for (auto const& column_name: this->column_names) {
@@ -259,7 +300,29 @@ Dbt* HeapTable::marshal(const ValueDict* row){
 }
 
 ValueDict* HeapTable::unmarshal(Dbt* data){
-
+	ValueDict *row = new ValueDict();
+	const char* bytes = (const char*)data->get_data();
+	uint offset = 0;
+	uint col_num = 0;
+	for (auto const& column_name: this->column_names) {
+      Value value;
+		ColumnAttribute ca = this->column_attributes[col_num++];
+		if (ca.get_data_type()==ColumnAttribute::DataType::INT){
+			value.n = *(u16*)(bytes+offset);
+         row->insert(pair<Identifier,Value>(column_name, value));
+			offset += sizeof(int32_t);
+		}else if (ca.get_data_type()==ColumnAttribute::DataType::TEXT){ 
+			uint size = *(u16*) (bytes+offset);
+			offset += sizeof(u16);
+			memcpy((void*)value.s.c_str(), (bytes+offset), size); //assume ASCII
+         row->insert(pair<Identifier,Value>(column_name, value));
+			offset += size;
+		}else {
+			throw DbRelationError("Only know how to unmarshal INT/TEXT");
+		}	
+	}
+   delete[] bytes;
+	return row;
 }
 
 
