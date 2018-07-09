@@ -40,25 +40,61 @@ RecordID SlottedPage::add(const Dbt* data) throw(DbBlockNoRoomError){
 	return id;
 
 }
-Dbt* SlottedPage::get(RecordID record_id){
 
+//gets a database block from the database file
+Dbt* SlottedPage::get(RecordID record_id){
+	u16 size, loc;
+	get_header(size, loc, record_id);
+	if (loc ==0)
+		return NULL;
+	Dbt* tempBlock = new Dbt(this->address(loc),size);//create a new Dbt structure from data and size	
+	return tempBlock;
 }
 
 void SlottedPage::put(RecordID record_id, const Dbt &data) throw(DbBlockNoRoomError){
-
+	u16 size, loc;
+	get_header(size, loc, record_id);
+	u16 new_size = data->get_size();
+	if (new_size > size){
+		u16 needed = new_size-size;
+		if (!has_room(new_size))
+			throw DbBlockNoRoomError("not enough room for resized record");
+		slide(loc+new_size, loc+size);//slide left for more room
+		memcpy(this->address(loc-needed), data->get_data(), new_size);//loc is right-justified
+	}else{
+		memcpy(this->address(loc), data->get_data(),new_size);
+		slide(loc+new_size, loc+size);//slide right to collapse to create more end_free in page
+	}
+	get_header(size,loc, record_id);//update the header size/offset
+	put_header(record_id, size, loc);	
+	
 }
 
+//removes a record by setting its size and loc to 0
 void SlottedPage::del(RecordID record_id){
-
+	u16 size, loc;
+	get_header(size, loc, record_id);
+	put_header(record_id,0,0);
+	slide(loc, loc+size);	
 }
 
+//sequence of all non-deleted record ids
 RecordIDs* SlottedPage::ids(void){
-
+	RecordIDs* records = new RecordIDs();//vector
+	for (int i = 1; i <= this->num_records, i++){
+		u16 size,loc;
+		get_header(size, loc, i);//loads up size and loc from id i
+		if (loc != 0)//0 is a deleted record, do not include.
+			records.push_back(i);
+	}
+	return records;
 }
 
 
+//get the size and offset for the given id, with id of zero being the block header.
 void SlottedPage::get_header(u16 &size, u16 &loc, RecordID id=0){
-
+	size = get_n(4*id);//num_records
+	loc = get_n(4*id+2);//end of free space
 }
 
 //store the size and offset for given id. For id of zero, store the block header, author K.Lundeen
@@ -71,12 +107,33 @@ void SlottedPage::put_header(RecordID id=0, u16 size=0, u16 loc=0){
 	put_n(4*id +2, loc);
 }
 
+//returns true if there is enough room in the SlottedPage for the new record of size
 bool SlottedPage::has_room(u16 size){
-
+	u16 free = this->end_free - ((this->num_records + 1) *4);//subtract the new header room from free space as well
+	return (size <= free);
 }
 
+//compacts or makes room for data so additions can always be done in the same place
+//start < end implies removal of data, start > end implies extra data needs to be added in
+//start < end will shift data to right, start > end will be a left shift.
 void SlottedPage::slide(u16 start, u16 end){
+	u16 shift = end - start;
+	if (shift == 0)
+		return;
+	//sliding
+	memcpy(this->address(end_free+1), this->address(end_free+1+shift),shift);
 
+	//fix headers
+	u16 size, loc;
+	for (int RecordID : ids()){
+		get_header(size, loc, RecordID);
+		if (loc <= start) {
+			loc+=shift;//new location
+			put_header(RecordID, size, loc);
+		}
+	}
+	this->end_free+=shift;
+	put_header();//updates with new end_free	
 }
 
 //get 2-byte int at given offset in block, author K.Lundeen
@@ -91,7 +148,6 @@ void SlottedPage::put_n(u16 offset, u16 n){
 }
 
 //make void pointer for given offset in the data block, author K.Lundeen
-
 void* SlottedPage::address(u16 offset){
 	return (void*)((char*)this->block.get_data()+offset);
 }
@@ -104,50 +160,81 @@ HeapFile::HeapFile(std::string name) : DbFile(name), dbfilename(""), last(0), cl
 
 }
 ~HeapFile::HeapFile() {
-
+//may not need
 }
 
 
 void HeapFile::create(void){
-
+	this->db_open(bdb.DB_CREATE | bdb.DB.EXCL);
+	DbBlock block = this->get_new();//get new returns a SlottedPage
+	this->put(block);
 }
 
 void HeapFile::drop(void){
-
+	close();
+	//stdio
+	remove(this->dbfilename);
 }
 
 void  HeapFile::open(void){
-
+	this->db_open();
+	//block size
 }
 
 void HeapFile::close(void){
-
+	this->db.close();
+	closed = true;
 }
 
 SlottedPage* HeapFile::get_new(void){
+	char block[BLOCK_SZ];//changed from DB_BLOCK_SZ
+	std::memset(block, 0, sizeof(block));
+	Dbt data(block, sizeof(block));
 
+	int block_id = ++this->last;
+	Dbt key(&block_id, sizeof(block_id));
+	
+	//write out an empty block and read it back in so Berkeley DB is managing the memory.
+	SlottedPage* page = new SlottedPage(data, this->last, true);
+	this->db.put(nullptr, &key, &data, 0); //write it out with initialization applied
+	this->db.get(nullptr, &key, &data, 0);
+	return page;
 }
 
 SlottedPage* HeapFile::get(BlockID block_id){
-
+	char block[BLOCK_SZ];
+	std::memset(block, 0, sizeof(block));
+	Dbt data(block, sizeof(block));
+	Dbt key(&block_id, sizeof(block_id));
+	this->db.get(nullptr, &key, &data,0);
+	return new SlottedPage(data, block_id, false);
 }
 
 void HeapFile::put(DbBlock* block){
-
+	BlockID id = block->get_block_id();
+	Dbt key(&id, sizeof(id);
+	this->db.put(nullptr, &key, block->get_block(), 0);
 }
 
 BlockIDs* HeapFile::block_ids(){
-
+	BlockIDs temp = new BlockIDs();//vector
+	for(int i = 1; i <=this->last; i++)
+		temp->push_back(i);
+	return temp;
+	
 }
-
-
-u_int32_t HeapFile::get_last_block_id() {return last;}
-
 void HeapFile::db_open(uint flags=0){
-
+	if (!this->closed){
+		return;
+	}
+	this->db = bdb.DB();
+	this->db.set_re_len(this->block_size);
+	this->dbfilename=_DB_ENV + this->name + ".db";
+	this->db.open(dbfilename, None, DB_RECNO, flags);
+	//stat line
+	this->last=db.stat(bdb.DB_FAST_STAT)['ndata'];
+	this->closed = false;
 }
-
-
 
 /**
  * @class HeapTable - Heap storage engine (implementation of DbRelation)
