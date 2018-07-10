@@ -100,6 +100,12 @@ string getTableInfo(TableRef* table) {
          return "here";
       case kTableJoin:
          toReturn += getTableInfo(table->join->left);
+         if (table->join->type == kJoinInner) {
+            toReturn += " JOIN " + getTableInfo(table->join->right);
+         }
+         if (table->join->type == kJoinCross) {
+            toReturn += " JOIN " + getTableInfo(table->join->right);
+         }
          if (table->join->type == kJoinLeft) {
             toReturn += " LEFT JOIN " + getTableInfo(table->join->right);
          }
