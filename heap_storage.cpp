@@ -221,7 +221,7 @@ void HeapFile::db_open(uint flags=0){
 	}
 	this->db = bdb.DB();
 	this->db.set_re_len(this->block_size);
-	this->dbfilename=_DB_ENV + this->name + ".db";
+	this->dbfilename=this->name + ".db";
 	this->db.open(NULL, (this->dbfilename).c_str(), NULL, DB_RECNO, flags,0);
 	//stat line
 	DB_BTREE_STAT *sp;
