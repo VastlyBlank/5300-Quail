@@ -9,6 +9,9 @@
  */
 #pragma once
 
+#ifndef STORAGE_ENGINE_H
+#define STORAGE_ENGINE_H
+
 #include <exception>
 #include <map>
 #include <utility>
@@ -266,7 +269,7 @@ public:
 class DbRelation {
 public:
 	// ctor/dtor
-	DbRelation(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes ) :
+	DbRelation(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes) :
 		table_name(table_name), column_names(column_names), column_attributes(column_attributes) {}
 	virtual ~DbRelation() {}
 
@@ -357,4 +360,4 @@ protected:
 	ColumnNames column_names;
 	ColumnAttributes column_attributes;
 };
-
+#endif

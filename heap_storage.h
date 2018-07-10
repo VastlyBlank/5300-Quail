@@ -9,6 +9,9 @@
  */
 #pragma once
 
+#ifndef HEAP_STORAGE_H
+#define HEAP_STORAGE_H
+
 #include "db_cxx.h"
 #include "storage_engine.h"
 
@@ -27,6 +30,7 @@
             etc.
  *
  */
+
 class SlottedPage : public DbBlock {
 public:
 	SlottedPage(Dbt &block, BlockID block_id, bool is_new=false);
@@ -99,7 +103,7 @@ protected:
 
 class HeapTable : public DbRelation {
 public:
-	HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes );
+	HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes) : DbRelation(table_name, column_names, column_attributes) {}
 	virtual ~HeapTable() {}
 	HeapTable(const HeapTable& other) = delete;
 	HeapTable(HeapTable&& temp) = delete;
@@ -131,4 +135,7 @@ protected:
 };
 
 bool test_heap_storage();
+
+#endif
+
 

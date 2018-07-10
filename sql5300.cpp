@@ -11,6 +11,8 @@
 #include "db_cxx.h"
 #include <string.h>
 #include <iostream>
+#include "heap_storage.h"
+
 using namespace std;
 using namespace hsql;
 
@@ -100,10 +102,17 @@ string getTableInfo(TableRef* table) {
          return "here";
       case kTableJoin:
          toReturn += getTableInfo(table->join->left);
-         if (table->join->type == kJoinLeft) {
+         if (table->join->type == kJoinCross ||
+            table->join->type == kJoinInner) {
+            toReturn += " JOIN " + getTableInfo(table->join->right);
+         }
+         if (table->join->type == kJoinLeft ||
+            table->join->type == kJoinLeftOuter ||
+            table->join->type == kJoinOuter) {
             toReturn += " LEFT JOIN " + getTableInfo(table->join->right);
          }
-         if (table->join->type == kJoinRight) {
+         if (table->join->type == kJoinRight ||
+            table->join->type == kJoinRightOuter) {
             toReturn += " RIGHT JOIN  " + getTableInfo(table->join->right);
          }
          if (table->join->type == kJoinNatural) {
@@ -205,17 +214,11 @@ int main(int argc, char *argv[]) {
    env.set_error_stream(&cerr);
    try {
     env.open(dirPath, DB_CREATE | DB_INIT_MPOOL, 0); 
-   } catch (DbException exc) {
+   } catch (DbException& exc) {
     cerr << "(sql5300: " << exc.what() << ")";
     exit(1);
    }
-   //create DB
-   Db db(&env, 0);
-   db.set_message_stream(env.get_message_stream());
-   db.set_error_stream(env.get_error_stream());
-   db.set_re_len(BLOCK_SIZE); //sets block size to 4k
-   //Erases old trees due to DB_TRUNCATE flag
-   db.open(NULL, DBFILE, NULL, DB_RECNO, DB_CREATE | DB_TRUNCATE, 0644);
+   _DB_ENV = &env;
    
    //print system running info
    cout << "(sql5300: running with database evniroment at "  << dirPath << ")" << endl;
@@ -230,6 +233,10 @@ int main(int argc, char *argv[]) {
       if (input == "quit") {
          break;
       }
+      if (input == "test") {
+         cout << "test_heap_storage: " << (test_heap_storage() ? "ok" : "failed") << endl;
+         continue;
+      }
     
 
       // parse result
@@ -238,7 +245,7 @@ int main(int argc, char *argv[]) {
       //Check that parse tree is valid
       if(result->isValid()) {
          //call our execute function
-         for  (int i = 0; i < result->size(); i++) {
+         for  (uint i = 0; i < result->size(); i++) {
             
             string parsedStatement = execute(result->getStatement(i));
 
