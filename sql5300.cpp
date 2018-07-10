@@ -13,12 +13,14 @@
 #include <iostream>
 #include "heap_storage.h"
 
+
 using namespace std;
 using namespace hsql;
 
 // Declare constants
 const char *DBFILE = "quail.db"; //name of DB file
 const unsigned int BLOCK_SIZE = 4096;
+DbEnv* _DB_ENV;
 
 string getExprString(Expr *expr); //initialize function in adv.
 
@@ -209,16 +211,17 @@ int main(int argc, char *argv[]) {
    // get directory from argument
    const char *dirPath = argv[1];
 
-   DbEnv env(0U);
-   env.set_message_stream(&cout);
-   env.set_error_stream(&cerr);
+   DbEnv* env = new DbEnv(0U);
+   env->set_message_stream(&cout);
+   env->set_error_stream(&cerr);
    try {
-    env.open(dirPath, DB_CREATE | DB_INIT_MPOOL, 0); 
+      env->open(dirPath, DB_CREATE | DB_INIT_MPOOL, 0); 
    } catch (DbException& exc) {
-    cerr << "(sql5300: " << exc.what() << ")";
-    exit(1);
+      cerr << "(sql5300: " << exc.what() << ")";
+      exit(1);
    }
-   _DB_ENV = &env;
+   
+   _DB_ENV = env;
    
    //print system running info
    cout << "(sql5300: running with database evniroment at "  << dirPath << ")" << endl;

@@ -103,7 +103,7 @@ protected:
 
 class HeapTable : public DbRelation {
 public:
-	HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes) : DbRelation(table_name, column_names, column_attributes) {}
+	HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes);
 	virtual ~HeapTable() {}
 	HeapTable(const HeapTable& other) = delete;
 	HeapTable(HeapTable&& temp) = delete;

@@ -159,7 +159,7 @@ void* SlottedPage::address(u16 offset){
  */
 
 void HeapFile::create(void){
-	this->db_open(DB_CREATE | DB_EXCL);
+	this->db_open (DB_CREATE | DB_EXCL);
 	DbBlock* block = this->get_new();//get new returns a SlottedPage
 	this->put(block);
 }
@@ -270,14 +270,14 @@ this->open();
 
 void HeapTable::update(const Handle handle, const ValueDict* new_values){
 	cerr << "FIXME" << endl;
-
+}
 void HeapTable::del(const Handle handle){
 	cerr << "FIXME" << endl;
 }
 
-//Handles* HeapTable::select(){
-
-//}
+Handles* HeapTable::select(){
+  return select(NULL);
+}
 
 //
 Handles* HeapTable::select(const ValueDict* where){
@@ -295,9 +295,9 @@ Handles* HeapTable::select(const ValueDict* where){
 	return handles;
 }
 
-//ValueDict* HeapTable::project(Handle handle){
-//   cerr << "FIXME" << endl;
-//}	
+ValueDict* HeapTable::project(Handle handle){
+   return project(handle, &this->column_names);
+}	
 
 ValueDict* HeapTable::project(Handle handle, const ColumnNames* column_names){
 	BlockID block_id = handle.first;
@@ -385,20 +385,21 @@ ValueDict* HeapTable::unmarshal(Dbt* data){
       Value value;
 		ColumnAttribute ca = this->column_attributes[col_num++];
 		if (ca.get_data_type()==ColumnAttribute::DataType::INT){
-			value.n = *(u16*)(bytes+offset);
+			value.n = *(int32_t*)(bytes+offset);
          row->insert(pair<Identifier,Value>(column_name, value));
 			offset += sizeof(int32_t);
 		}else if (ca.get_data_type()==ColumnAttribute::DataType::TEXT){ 
 			uint size = *(u16*) (bytes+offset);
 			offset += sizeof(u16);
-			memcpy((void*)value.s.c_str(), (bytes+offset), size); //assume ASCII
+         const char* str = new char[size];
+			memcpy((void*)str, (bytes+offset), size); //assume ASCII
+         value.s = string(str);
          row->insert(pair<Identifier,Value>(column_name, value));
 			offset += size;
 		}else {
 			throw DbRelationError("Only know how to unmarshal INT/TEXT");
 		}	
 	}
-   delete[] bytes;
 	return row;
 }
 
