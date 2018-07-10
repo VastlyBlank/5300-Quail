@@ -223,9 +223,11 @@ void HeapFile::db_open(uint flags=0){
 	this->db = bdb.DB();
 	this->db.set_re_len(this->block_size);
 	this->dbfilename=_DB_ENV + this->name + ".db";
-	this->db.open(dbfilename, None, DB_RECNO, flags);
+	this->db.open(NULL, (this->dbfilename).c_str(), NULL, DB_RECNO, flags,0);
 	//stat line
-	this->last=db.stat(bdb.DB_FAST_STAT)['ndata'];
+	DB_BTREE_STAT *sp;
+	this->db.stat(NULL,&sp, DB_FAST_STAT);
+	this->last=sp->bt_ndata;
 	this->closed = false;
 }
 
@@ -233,6 +235,7 @@ void HeapFile::db_open(uint flags=0){
  * @class HeapTable - Heap storage engine (implementation of DbRelation)
  */
 
+<<<<<<< HEAD
 HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes):DbRelation(table_name,column_names,column_attributes){
    this->file = new HeapFile(table_name);
 }
