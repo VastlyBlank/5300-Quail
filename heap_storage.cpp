@@ -159,7 +159,7 @@ void* SlottedPage::address(u16 offset){
 void HeapFile::create(void){
 	this->db_open(bdb.DB_CREATE | bdb.DB.EXCL);
 	DbBlock block = this->get_new();//get new returns a SlottedPage
-	this->put(block);
+	this->put(*block);
 }
 
 void HeapFile::drop(void){
@@ -171,6 +171,7 @@ void HeapFile::drop(void){
 void  HeapFile::open(void){
 	this->db_open();
 	//block size
+	//
 }
 
 void HeapFile::close(void){
@@ -232,12 +233,8 @@ void HeapFile::db_open(uint flags=0){
  * @class HeapTable - Heap storage engine (implementation of DbRelation)
  */
 
-HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes){
-this->file = new HeapFile(table_name);
-}
-
-HeapTable::~HeapTable() {
-
+HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes):DbRelation(table_name,column_names,column_attributes){
+   this->file = new HeapFile(table_name);
 }
 
 void HeapTable::create(){
