@@ -156,14 +156,6 @@ void* SlottedPage::address(u16 offset){
  * @class HeapFile - heap file implementation of DbFile
  */
 
-HeapFile::HeapFile(std::string name) : DbFile(name), dbfilename(""), last(0), closed(true), db(_DB_ENV, 0) {
-
-}
-~HeapFile::HeapFile() {
-//may not need
-}
-
-
 void HeapFile::create(void){
 	this->db_open(bdb.DB_CREATE | bdb.DB.EXCL);
 	DbBlock block = this->get_new();//get new returns a SlottedPage
@@ -241,7 +233,7 @@ void HeapFile::db_open(uint flags=0){
  */
 
 HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes){
-
+this->file = new HeapFile(table_name);
 }
 
 HeapTable::~HeapTable() {
@@ -249,19 +241,19 @@ HeapTable::~HeapTable() {
 }
 
 void HeapTable::create(){
-	this->file.create();
+	this->file->create();
 }
 
 void HeapTable::drop(){
-	this->file.drop();
+	this->file->drop();
 }
 
 void HeapTable::open(){
-	this->file.open();
+	this->file->open();
 }
 
 void HeapTable::close(){
-	this->file.close();
+	this->file->close();
 }
 
 void HeapTable::create_if_not_exists() {
@@ -292,9 +284,9 @@ void HeapTable::del(const Handle handle){
 //
 Handles* HeapTable::select(const ValueDict* where){
 	Handles* handles = new Handles();
-	BlockIDs* blockIDs = file.block_ids();
+	BlockIDs* blockIDs = file->block_ids();
 	for (auto const& blockID: *blockIDs){
-		SlottedPage *block = file.get(blockID);
+		SlottedPage *block = file->get(blockID);
 		RecordIDs* record_ids = block->ids();
 		for (auto const& record_id: *record_ids)
 			handles->push_back(Handle(blockID, record_id));
@@ -312,7 +304,7 @@ Handles* HeapTable::select(const ValueDict* where){
 ValueDict* HeapTable::project(Handle handle, const ColumnNames* column_names){
 	BlockID block_id = handle.first;
 	RecordID record_id = handle.second;
-	SlottedPage* block = this->file.get(block_id);
+	SlottedPage* block = this->file->get(block_id);
    Dbt* data = block->get(record_id);
 	ValueDict* row = this->unmarshal(data);
    ValueDict* toReturn;
@@ -344,16 +336,16 @@ ValueDict* HeapTable::validate(const ValueDict* row) {
 
 Handle HeapTable::append(const ValueDict* row){
 	Dbt* data = this->marshal(row);
-	SlottedPage* block = this->file.get(this->file.get_last_block_id());
+	SlottedPage* block = this->file->get(this->file->get_last_block_id());
 	RecordID record_id;
-   try {
+   	try {
 		record_id = block->add(data);
 	} catch (DbBlockNoRoomError) {
-		block = this->file.get_new();
+		block = this->file->get_new();
 		record_id = block->add(data);
 	}
-	this->file.put(block);
-	return Handle(this->file.get_last_block_id(), record_id);
+	this->file->put(block);
+	return Handle(this->file->get_last_block_id(), record_id);
 }
 
 //return the bits to go in the file

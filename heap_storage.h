@@ -127,7 +127,7 @@ public:
 	virtual ValueDict* project(Handle handle, const ColumnNames* column_names);
 
 protected:
-	HeapFile file;
+	HeapFile* file;
 	virtual ValueDict* validate(const ValueDict* row);
 	virtual Handle append(const ValueDict* row);
 	virtual Dbt* marshal(const ValueDict* row);
