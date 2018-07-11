@@ -3,8 +3,7 @@
  * It requires one command line argument, the existing
  * r/w directory in which to create the DB environment.
  *
- * @author Jacob Mouser
- * @author Brian Doersh
+ * @author Jacob Mouser, Brian Doersh, Kevin Lundeen
  */
 
 #include "SQLParser.h"
@@ -236,6 +235,7 @@ int main(int argc, char *argv[]) {
       if (input == "quit") {
          break;
       }
+      //test our code up to date
       if (input == "test") {
          cout << "test_heap_storage: " << (test_heap_storage() ? "ok" : "failed") << endl;
          continue;

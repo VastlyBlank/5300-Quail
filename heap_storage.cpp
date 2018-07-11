@@ -236,25 +236,41 @@ void HeapFile::db_open(uint flags){
  */
 
 HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes):DbRelation(table_name,column_names,column_attributes){
-   this->file = new HeapFile(table_name);
+   this->file = new HeapFile(table_name); //creates the relation file itself 
 }
 
-void HeapTable::create(){
+/*
+ * creates the heapFile and allocates the first slottedpage block
+ */
+void HeapTable::create(){ //
 	this->file->create();
-}
 
+}
+/*
+ * removes the heapfile from existance
+ */
 void HeapTable::drop(){
    this->file->drop();
 }
 
+/*
+ * opens the heapfile for performing reads/writes
+ */
 void HeapTable::open(){
 	this->file->open();
 }
 
+/*
+ * closes heapfile when done
+ */
 void HeapTable::close(){
 	this->file->close();
 }
 
+/*
+ * checks to see if relation exists, if it doesn't, catches 
+ * DbException and creates the table
+ */
 void HeapTable::create_if_not_exists() {
 	try {
 		this->open();
@@ -263,23 +279,57 @@ void HeapTable::create_if_not_exists() {
 	}
 }
 
+/*
+ * inserts a row into relation validates row before inserting
+ * @param ValuDict* to insert into realation
+ * @return Handle with BlockID and RecordID to Row
+ */
 Handle HeapTable::insert(const ValueDict* row){
-this->open();
+   this->open();
 	return this->append(this->validate(row));
+   this->close();
 }
 
+/*
+ * changes existing row. unimplemented stub
+ * @param Handle contining blockID and RecordID to update, and ValuDict 
+ * contining the new data
+ */
 void HeapTable::update(const Handle handle, const ValueDict* new_values){
-	cerr << "FIXME" << endl;
+	DbRelationError("dont know how to handle update rows yet");
 }
+
+/*
+ * deletes a row from relation. unimplented stub
+ * @param Handle with BlockID and RecordID of row to delete
+ */
 void HeapTable::del(const Handle handle){
-	cerr << "FIXME" << endl;
+	DbRelationError("dont know how to handle delete rows yet");
 }
 
-Handles* HeapTable::select(){
-  return select(NULL);
+/*
+ * returns an empty filter on rows (ie returns all rows)
+ * @return a Handles List, of Handles pointing to each row returned
+ */
+Handles* HeapTable::select() {
+   Handles* handles = new Handles();
+	BlockIDs* blockIDs = file->block_ids();
+	for (auto const& blockID: *blockIDs){
+		SlottedPage *block = file->get(blockID);
+		RecordIDs* record_ids = block->ids();
+		for (auto const& record_id: *record_ids)
+			handles->push_back(Handle(blockID, record_id));
+		delete record_ids;
+		delete block;
+	}
+	delete blockIDs;
+	return handles;
 }
-
-//
+/*
+ * eventually will implement where here filter here
+ * @param the where clause on which to filter rows
+ * @return the Handles which point to the desired rows
+ */
 Handles* HeapTable::select(const ValueDict* where){
 	Handles* handles = new Handles();
 	BlockIDs* blockIDs = file->block_ids();
@@ -295,10 +345,20 @@ Handles* HeapTable::select(const ValueDict* where){
 	return handles;
 }
 
+/*
+ * for selecting all columns from row (ie SQL SELECT *)
+ * @param the handle of the desired row to project
+ * @return a ValueDict containing the entire row of data
+ */
 ValueDict* HeapTable::project(Handle handle){
    return project(handle, &this->column_names);
 }	
 
+/*
+ * for selecting a subset of columns from relation (ie SQL SELECT ID, name)
+ * @param  handle  Handle to the desired row
+ * @param  ColumnNames a list of columns to project
+ */
 ValueDict* HeapTable::project(Handle handle, const ColumnNames* column_names){
 	BlockID block_id = handle.first;
 	RecordID record_id = handle.second;
@@ -318,13 +378,17 @@ ValueDict* HeapTable::project(Handle handle, const ColumnNames* column_names){
 	return toReturn;
 }
 
-
+/*
+ * checks if row to insert is a valid row before insertion
+ * @param ValuDict row, to be checked
+ * @return a fully fleshed out row
+ */
 ValueDict* HeapTable::validate(const ValueDict* row) {
 	ValueDict* full_row = new ValueDict;
 	for (auto const& column_name: this->column_names) {
 		ValueDict::const_iterator column = row->find(column_name);
 		if (column == row->end()) {
-			cerr << "Dont know how to handle NULLs, defaults, etc. yet" << endl;
+			throw DbRelationError("Dont know how to handle NULLs, defaults, etc. yet");
 		} else {
 			full_row->insert(pair<Identifier,Value>(column->first, column->second));
 		}
@@ -332,6 +396,11 @@ ValueDict* HeapTable::validate(const ValueDict* row) {
 	return full_row;
 }
 
+/*
+ * adds a row to relation (helper function for insert)
+ * @param ValuDict ro to add 
+ * @return Handle pointing to record which was inserted
+ */
 Handle HeapTable::append(const ValueDict* row){
 	Dbt* data = this->marshal(row);
 	SlottedPage* block = this->file->get(this->file->get_last_block_id());
@@ -346,8 +415,12 @@ Handle HeapTable::append(const ValueDict* row){
 	return Handle(this->file->get_last_block_id(), record_id);
 }
 
-//return the bits to go in the file
-//caller responsible for freeing the returned Dbt and its enclosed ret->get_data(), author: K. Lundeen
+/*
+ * return the bits to go in the file
+ *caller responsible for freeing the returned Dbt and its enclosed ret->get_data(), author: K. Lundeen
+ * @param row to convert
+ * @return Dbt* containing raw bitstring of row data
+*/
 Dbt* HeapTable::marshal(const ValueDict* row){
 	char *bytes = new char[DbBlock::BLOCK_SZ]; //more than needed
 	uint offset = 0;
@@ -376,6 +449,12 @@ Dbt* HeapTable::marshal(const ValueDict* row){
 	return data;
 }
 
+/*
+ * used by project to convert bits in Dbt structure into 
+ * typed, ValueDict row
+ * @param Dbt* data to be converted back to ValueDict Format
+ * @return Valudict row created from data in Dbt* data
+ */
 ValueDict* HeapTable::unmarshal(Dbt* data){
 	ValueDict *row = new ValueDict();
 	const char* bytes = (const char*)data->get_data();

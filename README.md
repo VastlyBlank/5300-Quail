@@ -26,3 +26,13 @@ line agruemnt which is where the DB will be constructed ie:
 
 $ ./sql5300 /home/st/mouserj/cpsc5300/data
 
+this will result in a SQL prompt. You can query SQL Statments as per usual
+but the only result will be a parsed statement printed to console. ie:
+
+SQL> select foo from bar
+SELECT foo FROM bar
+
+In order to exit the program just type "quit"
+
+In order to test our storage engine functionality simply type "test"
+

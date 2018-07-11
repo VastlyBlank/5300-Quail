@@ -99,6 +99,9 @@ protected:
 
 /**
  * @class HeapTable - Heap storage engine (implementation of DbRelation)
+ * Extends DbRelation from heap_engine.h
+ * used for high level implementation of relations and for executing
+ * sql statments on those relations
  */
 
 class HeapTable : public DbRelation {
