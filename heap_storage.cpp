@@ -51,6 +51,7 @@ Dbt* SlottedPage::get(RecordID record_id){
 	return tempBlock;
 }
 
+//replaces a record at record_id with the data from the passed in Dbt structure.
 void SlottedPage::put(RecordID record_id, const Dbt &data) throw(DbBlockNoRoomError){
 	u16 size, loc;
 	get_header(size, loc, record_id);
@@ -109,7 +110,7 @@ void SlottedPage::put_header(RecordID id, u16 size, u16 loc){
 
 //returns true if there is enough room in the SlottedPage for the new record of size
 bool SlottedPage::has_room(u16 size){
-	u16 free = this->end_free - ((this->num_records + 1) *4);//subtract the new header room from free space as well
+	u16 free = (this->end_free - ((this->num_records + 1) *4));//subtract the new header room from free space as well
 	return (size <= free);
 }
 
@@ -127,7 +128,7 @@ void SlottedPage::slide(u16 start, u16 end){
 	u16 size, loc;
 	RecordIDs* rIds = ids();
 	for (unsigned int i = 0; i < rIds->size(); i++){
-		RecordID id = rIds->at(id);
+		RecordID id = rIds->at(i);
 		get_header(size, loc, id);
 		if (loc <= start) {
 			loc+=shift;//new location
@@ -158,28 +159,29 @@ void* SlottedPage::address(u16 offset){
  * @class HeapFile - heap file implementation of DbFile
  */
 
+ //creates the file using the Berkeley DB based on this architecture
 void HeapFile::create(void){
 	this->db_open (DB_CREATE | DB_EXCL);
 	DbBlock* block = this->get_new();//get new returns a SlottedPage
 	this->put(block);
 }
-
+//deletes the file
 void HeapFile::drop(void){
 	close();
 	//stdio
 	remove(this->dbfilename.c_str());
 }
-
+//opens the file using db_open
 void  HeapFile::open(void){
 	this->db_open();
 	//block size
 }
-
+//closes the database
 void HeapFile::close(void){
 	this->db.close(0);
 	closed = true;
 }
-
+//gets a new page to use with Berkeley db, by passing a blank to db for mem managing
 SlottedPage* HeapFile::get_new(void){
 	char block[SlottedPage::BLOCK_SZ];//changed from DB_BLOCK_SZ
 	std::memset(block, 0, sizeof(block));
@@ -194,7 +196,7 @@ SlottedPage* HeapFile::get_new(void){
 	this->db.get(nullptr, &key, &data, 0);
 	return page;
 }
-
+//gets the page at the block_id given
 SlottedPage* HeapFile::get(BlockID block_id){
 	char block[SlottedPage::BLOCK_SZ];
 	std::memset(block, 0, sizeof(block));
@@ -203,13 +205,13 @@ SlottedPage* HeapFile::get(BlockID block_id){
 	this->db.get(nullptr, &key, &data,0);
 	return new SlottedPage(data, block_id, false);
 }
-
+//puts a block in the database
 void HeapFile::put(DbBlock* block){
 	BlockID id = block->get_block_id();
 	Dbt key(&id, sizeof(id));
 	this->db.put(nullptr, &key, block->get_block(), 0);
 }
-
+//returns a list of all used blockIDs, similar to RecordIDs
 BlockIDs* HeapFile::block_ids(){
 	BlockIDs* temp = new BlockIDs();//vector
 	for(u_int32_t i = 1; i <=this->last; i++)
@@ -217,6 +219,7 @@ BlockIDs* HeapFile::block_ids(){
 	return temp;
 	
 }
+//uses Berkeley db to initialize a database based on the file. 0 is the common flag.
 void HeapFile::db_open(uint flags){
 	if (!this->closed){
 		return;
