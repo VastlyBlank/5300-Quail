@@ -36,3 +36,9 @@ In order to exit the program just type "quit"
 
 In order to test our storage engine functionality simply type "test"
 
+It may be necessary to clear the data folder of existing db files if they
+already exist. As seen in the test, one of the tables is created regardless
+of the check if it exists, so this is likely. In this case, it may be wise
+to include in the makefile:
+rm -rf ~/cpsc5300/data/*
+This will remove the db files and allows one to run the test again.
