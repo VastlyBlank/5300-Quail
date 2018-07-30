@@ -9,9 +9,6 @@
  */
 #pragma once
 
-#ifndef STORAGE_ENGINE_H
-#define STORAGE_ENGINE_H
-
 #include <exception>
 #include <map>
 #include <utility>
@@ -61,11 +58,6 @@ public:
 	virtual ~DbBlock() {}
 
 	/**
-	 * Reinitialize this block to an empty new block.
-	 */
-	virtual void initialize_new() {}
-
-	/**
 	 * Add a new record to this block.
 	 * @param data  the data to store for the new record
 	 * @returns     the new RecordID for the new record
@@ -78,7 +70,7 @@ public:
 	 * @param record_id  which record to fetch
 	 * @returns          the data stored for the given record
 	 */
-	virtual Dbt* get(RecordID record_id) = 0;
+	virtual Dbt* get(RecordID record_id) const = 0;
 
 	/**
 	 * Change the data stored for a record in this block.
@@ -99,7 +91,7 @@ public:
 	 * Get all the record ids in this block (excluding deleted ones).
 	 * @returns  pointer to list of record ids (freed by caller)
 	 */ 
-	virtual RecordIDs* ids() = 0;
+	virtual RecordIDs* ids() const = 0;
 
 	/**
 	 * Access the whole block's memory as a BerkeleyDB Dbt pointer.
@@ -188,7 +180,7 @@ public:
 	 * FIXME - not a good long-term approach, but we'll do this until we put in iterators
 	 * @returns  a pointer to vector of BlockIDs (freed by caller)
 	 */ 
-	virtual BlockIDs* block_ids() = 0;
+	virtual BlockIDs* block_ids() const = 0;
 
 protected:
 	std::string name;  // filename (or part of it)
@@ -202,14 +194,26 @@ class ColumnAttribute {
 public:
 	enum DataType {
 		INT,
-		TEXT
+		TEXT,
+		BOOLEAN
 	};
 	ColumnAttribute() : data_type(INT) {}
 	ColumnAttribute(DataType data_type) : data_type(data_type) {}
 	virtual ~ColumnAttribute() {}
 
 	virtual DataType get_data_type() { return data_type; }
-	virtual std::string get_data_type_string() { return data_type == INT ? "INT" : "TEXT"; }
+	
+	virtual std::string get_data_type_string()
+	{
+		switch(data_type)
+		{
+			case INT: return "INT";
+			case TEXT: return "TEXT";
+			case BOOLEAN: return "BOOLEAN";
+			default: return "UNKNOWN";
+		}
+	}
+	
 	virtual void set_data_type(DataType data_type) {this->data_type = data_type;}
 
 protected:
@@ -230,7 +234,7 @@ public:
 	Value(int32_t n) : n(n) {data_type = ColumnAttribute::INT;}
 	Value(std::string s) : s(s) {data_type = ColumnAttribute::TEXT; }
 	Value(const Value& other) {this->s = other.s; this->n = other.n; this->data_type = other.data_type; }
-	Value& operator=(const Value& other) {this->s = other.s; this->n = other.n; this->data_type = other.data_type; return *this; }
+	Value& operator=(const Value& other) {this->s = other.s; this->n = other.n; this->data_type = other.data_type; return *this;}
 	
 	bool operator==(const Value &other) const;
 	bool operator!=(const Value &other) const;
@@ -372,9 +376,94 @@ public:
 	 */
 	ValueDict* project(Handle handle, const ValueDict* column_names);
 
+	/**
+	 * Accessor for column_names.
+	 * @returns column_names   list of column names for this relation, in order
+	 */
+	virtual const ColumnNames& get_column_names() const { 
+		return column_names; 
+	}
+
+	/**
+	 * Accessor for column_attributes.
+	 * @returns column_attributes dictionary of column attributes keyed by column names
+	 */
+	virtual const ColumnAttributes get_column_attributes() const {
+		return column_attributes;
+	}
+
 protected:
 	Identifier table_name;
 	ColumnNames column_names;
 	ColumnAttributes column_attributes;
 };
-#endif
+
+class DbIndex {
+public:
+	/**
+	 * Maximum number of columns in a composite index
+	 */
+    static const uint MAX_COMPOSITE = 32U;
+
+	// ctor/dtor
+    DbIndex(DbRelation& relation, Identifier name, ColumnNames key_columns, bool unique)
+            : relation(relation), name(name), key_columns(key_columns), unique(unique) {}
+    virtual ~DbIndex() {}
+
+	/**
+	 * Create this index.
+	 */
+    virtual void create() = 0;
+
+	/**
+	 * Drop this index.
+	 */
+    virtual void drop() = 0;
+
+	/**
+	 * Open this index.
+	 */
+    virtual void open() = 0;
+
+	/**
+	 * Close this index.
+	 */
+    virtual void close() = 0;
+
+	/**
+	 * Lookup a specific search key.
+	 * @param key_values  dictionary of values for the search key
+	 * @returns           list of DbFile handles for records with key_values
+	 */
+    virtual Handles* lookup(ValueDict* key_values) const = 0;
+
+	/**
+	 * Lookup a range of search keys.
+	 * @param min_key  dictionary of min (inclusive) search key
+	 * @param max_key  dictionary of max (inclusive) search key
+	 * @returns        list of DbFile handles for records in range
+	 */
+    virtual Handles* range(ValueDict* min_key, ValueDict* max_key) const {
+        throw DbRelationError("range index query not supported");
+    }
+
+	/**
+	 * Insert the index entry for the given record.
+	 * @param record  handle (into relation) to the record to insert
+	 *                (must be in the relation at time of insertion)
+	 */
+    virtual void insert(Handle record) = 0;
+
+	/**
+	 * Delete the index entry for the given record.
+	 * @param record  handle (into relation) to the record to remove
+	 *                (must still be in the relation at time of removal)
+	 */
+    virtual void del(Handle record) = 0;
+
+protected:
+    DbRelation& relation;
+    Identifier name;
+    ColumnNames key_columns;
+    bool unique;
+};

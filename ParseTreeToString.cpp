@@ -197,17 +197,37 @@ string ParseTreeToString::insert(const InsertStatement *stmt) {
 }
 
 string ParseTreeToString::create(const CreateStatement *stmt) {
-	string toReturn = "CREATE TABLE ";
-	if (stmt->ifNotExists) toReturn += "IF NOT EXISTS ";
-	toReturn += string(stmt->tableName) + " (";
-	int count = 0;
-	for(ColumnDefinition* col : *stmt->columns) {
-		if (count > 0) toReturn += ", ";
-		toReturn += column_definition(col);;
-		count += 1;
+	string ret("CREATE ");
+	if (stmt->type == CreateStatement::kTable) {
+		ret += "TABLE ";
+		if (stmt->ifNotExists)
+			ret += "IF NOT EXISTS ";
+		ret += string(stmt->tableName) + " (";
+		bool doComma = false;
+		for (ColumnDefinition *col : *stmt->columns) {
+			if (doComma)
+				ret += ", ";
+			ret += column_definition(col);
+			doComma = true;
+		}
+		ret += ")";
+	} else if (stmt->type == CreateStatement::kIndex) {
+		ret += "INDEX ";
+		ret += string(stmt->indexName) + " ON ";
+		ret += string(stmt->tableName) + " USING " + stmt->indexType + " (";
+		bool doComma = false;
+		for (auto const& col : *stmt->indexColumns) {
+			if (doComma)
+				ret += ", ";
+			ret += string(col);
+			doComma = true;
+		}
+		ret += ")";
+	} else {
+		ret += "...";
 	}
-	toReturn += ")";
-	return toReturn;
+
+	return ret;
 }
 
 string ParseTreeToString::drop(const DropStatement *stmt) {
@@ -216,6 +236,9 @@ string ParseTreeToString::drop(const DropStatement *stmt) {
         case DropStatement::kTable:
             ret += "TABLE ";
             break;
+		case DropStatement::kIndex:
+			ret += string("INDEX ") + stmt->indexName + " FROM ";
+			break;
         default:
             ret += "? ";
     }
@@ -233,7 +256,7 @@ string ParseTreeToString::show(const ShowStatement *stmt) {
             ret += string("COLUMNS FROM ") + stmt->tableName;
             break;
         case ShowStatement::kIndex:
-            ret += "INDEX";
+            ret += string("INDEX FROM ") + stmt->tableName;
             break;
         default:
             ret += "?what?";

@@ -63,21 +63,50 @@ public:
 protected:
 	// the one place in the system that holds the _tables table
     static Tables *tables;
+	static Indices *indices;
 
 	// recursive decent into the AST
+	
+	/*
+	 * dealing with create statement
+	 * @param statement the query statement
+	 * @returns the query result
+	 */
+    static QueryResult *create(const hsql::CreateStatement *statement);
 	
 	/*
 	 * create table
 	 * @param statement the query statement 
 	 * @returns the query result
 	 */
-    static QueryResult *create(const hsql::CreateStatement *statement);
+	static QueryResult *create_table(const hsql::CreateStatement *statement);
+	
+	/*
+	 * create index
+	 * @param statement the query statement 
+	 * @returns the query result
+	 */
+    static QueryResult *create_index(const hsql::CreateStatement *statement);
+	
+	/*
+	 * dealing with the drop statement
+	 * @param statement the query statement
+	 * @returns the query result
+	 */
+    static QueryResult *drop(const hsql::DropStatement *statement);
 	/*
 	 * drop table
 	 * @param statement the query statement
 	 * @returns the query result
 	 */
-    static QueryResult *drop(const hsql::DropStatement *statement);
+	static QueryResult *drop_table(const hsql::DropStatement *statement);
+	/*
+	 * drop index
+	 * @param statement the query statement
+	 * @returns the query result
+	 */
+    static QueryResult *drop_index(const hsql::DropStatement *statement);
+	
 	/*
 	 * dealing with the show statement
 	 * @param statement the query statement
@@ -95,6 +124,12 @@ protected:
 	 * @returns the query result
 	 */
     static QueryResult *show_columns(const hsql::ShowStatement *statement);
+	/*
+	 * show index
+	 * @param statement the query statement
+	 * @returns the query result
+	 */
+	static QueryResult *show_index(const hsql::ShowStatement *statement);
 
 	/**
 	 * Pull out column name and attributes from AST's column definition clause
@@ -111,5 +146,22 @@ protected:
 	 * @param column_attributes  returned by reference
 	 */
 	static void column_definitions(const hsql::CreateStatement *statement, ColumnNames& column_names, ColumnAttributes& column_attrbutes);
+	/*
+	 * Set index columns with information provided by query statement
+	 * @param statement the query statement
+	 * @param index_column_names return a list of indexed column names by reference
+	 */
+	static void get_index_column_names(const hsql::CreateStatement *statement, ColumnNames& index_column_names);
+	/*
+	 * Check if index columns exist in table
+	 * @param column_names the column names of the table
+	 * @param index_column_names the index column names 
+	 */
+	static void ensure_index_column_exist(ColumnNames& column_names, ColumnNames& index_column_names);
+	/*
+	 * check if the index name exists
+	 * @param statement the query statement 
+	 */
+	static void ensure_index_not_exist(const hsql::CreateStatement *statement);
 };
 

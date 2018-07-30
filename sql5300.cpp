@@ -16,6 +16,7 @@
 #include "SQLParser.h"
 #include "ParseTreeToString.h"
 #include "SQLExec.h"
+#include "unit_test.h"
 
 using namespace std;
 using namespace hsql;
@@ -53,7 +54,8 @@ int main(int argc, char *argv[]) {
 		}
 		//test our code up to date
 		if (input == "test") {
-			cout << "test_heap_storage: " << (test_heap_storage() ? "ok" : "failed") << endl;
+			unit_test();
+			cout << "==========All test passed===========" << endl;
 			continue;
 		}
 
