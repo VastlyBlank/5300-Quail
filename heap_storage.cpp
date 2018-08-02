@@ -485,7 +485,7 @@ Handles* HeapTable::select(const ValueDict* where){
 			
 			if (selected(handle, where))
 			{
-				handles->push_back(Handle(blockID, record_id));
+				handles->push_back(handle);
 			}
 		}
 		
@@ -496,6 +496,15 @@ Handles* HeapTable::select(const ValueDict* where){
 	delete blockIDs;
 	
 	return handles;
+}
+
+// Refine another selection
+Handles* HeapTable::select(Handles *current_selection, const ValueDict* where) {
+    Handles* handles = new Handles();
+    for (auto const& handle: *current_selection)
+        if (selected(handle , where))
+            handles->push_back(handle);
+    return handles;
 }
 
 // See if the row at the given handle satisfies the given where clause

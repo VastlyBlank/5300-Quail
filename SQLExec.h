@@ -163,5 +163,9 @@ protected:
 	 * @param statement the query statement 
 	 */
 	static void ensure_index_not_exist(const hsql::CreateStatement *statement);
+
+	static QueryResult *insert(const hsql::InsertStatement *statement);
+    static QueryResult *del(const hsql::DeleteStatement *statement);
+    static QueryResult *select(const hsql::SelectStatement *statement);
 };
 

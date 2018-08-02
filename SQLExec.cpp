@@ -91,6 +91,12 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
                 return drop((const DropStatement *) statement);
             case kStmtShow:
                 return show((const ShowStatement *) statement);
+			case kStmtInsert:
+                return insert((const InsertStatement *) statement);
+            case kStmtDelete:
+                return del((const DeleteStatement *) statement);
+            case kStmtSelect:
+                return select((const SelectStatement *) statement);
             default:
                 return new QueryResult("not implemented");
         }
@@ -98,6 +104,19 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
         throw SQLExecError(string("DbRelationError: ") + e.what());
     }
 }
+
+QueryResult *SQLExec::insert(const InsertStatement *statement) {
+    return new QueryResult("INSERT statement not yet implemented");  // FIXME
+}
+
+QueryResult *SQLExec::del(const DeleteStatement *statement) {
+    return new QueryResult("DELETE statement not yet implemented");  // FIXME
+}
+
+QueryResult *SQLExec::select(const SelectStatement *statement) {
+    return new QueryResult("SELECT statement not yet implemented");  // FIXME
+}
+
 
 /*
  * Pull out column name and attributes from AST's column definition clause
@@ -242,7 +261,9 @@ QueryResult *SQLExec::create_index(const CreateStatement *statement) {
 	
 	Identifier table_name = statement->tableName;
 	Identifier index_name = statement->indexName;
+
 	string index_type(statement->indexType);
+	
 	ColumnNames column_names;
 	ColumnAttributes column_attributes;
 	
