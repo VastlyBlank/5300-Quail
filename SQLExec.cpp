@@ -171,7 +171,40 @@ QueryResult *SQLExec::del(const DeleteStatement *statement) {
 QueryResult *SQLExec::select(const SelectStatement *statement) {
 
 
-    return new QueryResult("SELECT statement not yet implemented");  // FIXME
+    ColumnNames *cn = new ColumnNames();
+	ColumnAttributes *cas = new ColumnAttributes();
+	DbRelation& table = tables->get_table(statement->fromTable->name);
+
+	EvalPlan *plan = new EvalPlan(table);
+
+	if (statement->whereClause != nullptr)
+	{
+		plan = new EvalPlan(get_where_conjunction(statement->whereClause), plan);
+	}
+
+	exprnList* select_list = statement->selectList; //TYPEDEF defined at the top
+
+	if (select_list->at(0)->type == hsql::kExprStar)
+	{   //for SELECT * queries
+		*cn = table.get_column_names();
+		plan = new EvalPlan(EvalPlan::ProjectAll, plan); //ProjectAll
+	}
+
+	else { //for SELECT specific cols           
+		for (auto const element : *select_list)
+			cn->push_back(element->name);  
+
+		plan = new EvalPlan(cn, plan); //Project specific cols
+	}
+
+	EvalPlan *optimized = plan->optimize();
+	ValueDicts *rows = optimized->evaluate();
+
+	cas = table.get_column_attributes(*cn);
+
+	std::string message = "successfullyReturned " + std::to_string(rows->size()) + " rows";
+
+	return new QueryResult(cn, cas, rows, message);  // FIXME
 }
 
 
