@@ -76,7 +76,7 @@ QueryResult::~QueryResult() {
  * @returns           the query result (freed by caller)
  */
 QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError) {
-    // FIXME: initialize _tables table, if not yet present
+
 	if (SQLExec::tables == nullptr)
         SQLExec::tables = new Tables();
 	
@@ -106,14 +106,71 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
 }
 
 QueryResult *SQLExec::insert(const InsertStatement *statement) {
-    return new QueryResult("INSERT statement not yet implemented");  // FIXME
+	
+	Identifier table_name = statement->tableName;
+	DbRelation& table = SQLExec::tables->get_table(table_name);
+
+	ColumnNames column_names;
+	ColumnAttributes column_attributes;
+
+	SQLExec::tables->get_columns(table_name, column_names, column_attributes);
+
+	// Begin constructing row for insert
+	ValueDict row;
+
+	uint i = 0;
+
+	// Sets columns of new row to specified datatype
+	if(statement->columns != NULL) {
+		for(i = 0; i < statement->columns->size(); i++){
+			Identifier col = statement->columns->at(i);
+			if(find(column_names.begin(), column_names.end(), col) != column_names.end()){
+				Expr* expr = statement->values->at(i);
+				switch(expr->type) {
+					case kExprLiteralString:
+						row[col] = Value(string(expr->name));
+						break;
+					case kExprLiteralFloat:
+						row[col] = Value(float(expr->fval));
+						break;
+					case kExprLiteralInt:
+						row[col] = Value(int(expr->ival));
+						break;
+					default:
+						throw SQLExecError("Not String, Float, or Int");
+						break;
+				}
+			} else {
+				throw SQLExecError("Unrecognized column type");
+			}
+		}
+	}
+
+	Handle table_insert = table.insert(&row);
+
+	// Add to index
+	ValueDict where;
+	where["table_name"] = Value(statement->tableName);
+	Handles* hand = SQLExec::indices->select(&where);
+
+	string retStmt = "Successfully inserted 1 row into " + table_name;
+
+	if(index_count > 0) {
+		retStmt += " and " + to_string(index_count) + " indices.";
+	}
+
+    return new QueryResult(retStmt); 
 }
 
 QueryResult *SQLExec::del(const DeleteStatement *statement) {
+
+
     return new QueryResult("DELETE statement not yet implemented");  // FIXME
 }
 
 QueryResult *SQLExec::select(const SelectStatement *statement) {
+
+
     return new QueryResult("SELECT statement not yet implemented");  // FIXME
 }
 
