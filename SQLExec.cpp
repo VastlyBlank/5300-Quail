@@ -5,12 +5,16 @@
  */
 #include <unordered_set>
 #include "SQLExec.h"
+
 using namespace std;
 using namespace hsql;
 
 // define static data
 Tables* SQLExec::tables = nullptr;
 Indices* SQLExec::indices = nullptr;
+
+typedef std::vector<hsql::Expr*> exprnList;
+
 
 // make query result be printable
 ostream &operator<<(ostream &out, const QueryResult &qres) {
@@ -105,6 +109,8 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
     }
 }
 
+
+
 QueryResult *SQLExec::insert(const InsertStatement *statement) {
 	
 	Identifier table_name = statement->tableName;
@@ -154,6 +160,8 @@ QueryResult *SQLExec::insert(const InsertStatement *statement) {
 	Handles* hand = SQLExec::indices->select(&where);
 
 	string retStmt = "Successfully inserted 1 row into " + table_name;
+
+	u_long index_count = hand->size();
 
 	if(index_count > 0) {
 		retStmt += " and " + to_string(index_count) + " indices.";
