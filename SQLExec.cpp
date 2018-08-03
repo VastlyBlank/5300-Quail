@@ -185,11 +185,12 @@ QueryResult *SQLExec::select(const SelectStatement *statement) {
 
 	EvalPlan *plan = new EvalPlan(table);
 
+/*
 	if (statement->whereClause != nullptr)
 	{
 		plan = new EvalPlan(get_where_conjunction(statement->whereClause), plan);
 	}
-
+*/
 	exprnList* select_list = statement->selectList; //TYPEDEF defined at the top
 
 	if (select_list->at(0)->type == hsql::kExprStar)
@@ -210,7 +211,7 @@ QueryResult *SQLExec::select(const SelectStatement *statement) {
 
 	cas = table.get_column_attributes(*cn);
 
-	std::string message = "successfullyReturned " + std::to_string(rows->size()) + " rows";
+	std::string message = "Successfully returned " + std::to_string(rows->size()) + " rows.";
 
 	return new QueryResult(cn, cas, rows, message);  // FIXME
 }
