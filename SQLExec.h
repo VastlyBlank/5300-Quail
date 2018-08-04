@@ -9,6 +9,8 @@
 #include <string>
 #include "SQLParser.h"
 #include "schema_tables.h"
+#include "ParseTreeToString.h"
+#include "EvalPlan.h"
 
 /**
  * @class SQLExecError - exception for SQLExec methods
@@ -164,8 +166,12 @@ protected:
 	 */
 	static void ensure_index_not_exist(const hsql::CreateStatement *statement);
 
+	static void get_where_conjunction(const hsql::Expr* expr, ValueDict &where);
+
 	static QueryResult *insert(const hsql::InsertStatement *statement);
     static QueryResult *del(const hsql::DeleteStatement *statement);
     static QueryResult *select(const hsql::SelectStatement *statement);
+    static ValueDict *get_where_conjunction(const hsql::Expr* expr);
+
 };
 

@@ -109,8 +109,7 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
     }
 }
 
-ValueDict *SQLExec::get_where_conjunction(const hsql::Expr* expr)
-{
+ValueDict *SQLExec::get_where_conjunction(const hsql::Expr* expr) {
 	ValueDict *where = new ValueDict();
 
 	get_where_conjunction(expr, *where);
@@ -118,8 +117,8 @@ ValueDict *SQLExec::get_where_conjunction(const hsql::Expr* expr)
 
 }
 
-void SQLExec::get_where_conjunction(const hsql::Expr* expr, ValueDict &where) //Function Overriding
-{
+//Function Overriding
+void SQLExec::get_where_conjunction(const hsql::Expr* expr, ValueDict &where) {
 	if (expr->type == hsql::kExprOperator)
 	{
 		if (expr->opType == hsql::Expr::SIMPLE_OP) 
@@ -224,12 +223,12 @@ QueryResult *SQLExec::select(const SelectStatement *statement) {
 
 	EvalPlan *plan = new EvalPlan(table);
 
-/*
+
 	if (statement->whereClause != nullptr)
 	{
 		plan = new EvalPlan(get_where_conjunction(statement->whereClause), plan);
 	}
-*/
+
 	exprnList* select_list = statement->selectList; //TYPEDEF defined at the top
 
 	if (select_list->at(0)->type == hsql::kExprStar)
