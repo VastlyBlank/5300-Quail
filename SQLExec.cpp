@@ -109,6 +109,45 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
     }
 }
 
+ValueDict *SQLExec::get_where_conjunction(const hsql::Expr* expr)
+{
+	ValueDict *where = new ValueDict();
+
+	get_where_conjunction(expr, *where);
+	return where;
+
+}
+
+void SQLExec::get_where_conjunction(const hsql::Expr* expr, ValueDict &where) //Function Overriding
+{
+	if (expr->type == hsql::kExprOperator)
+	{
+		if (expr->opType == hsql::Expr::SIMPLE_OP) 
+		{
+			Value val;
+			Identifier identifier = expr->expr->name;
+			switch (expr->expr2->type) {
+			case hsql::kExprLiteralString: {
+				val = Value(expr->expr2->name);
+				break;
+			}
+			case hsql::kExprLiteralInt: {
+				val = Value(int32_t(expr->expr2->ival));
+				break;
+			}
+			default:
+				throw DbRelationError("Not yet implemented.");
+				break;
+			}
+			where[identifier] = Value(val);
+		}
+		else if (expr->opType == hsql::Expr::AND) // need to explain
+		{
+			get_where_conjunction(expr->expr, where);
+			get_where_conjunction(expr->expr2, where);
+		}
+	}
+}
 
 
 QueryResult *SQLExec::insert(const InsertStatement *statement) {
