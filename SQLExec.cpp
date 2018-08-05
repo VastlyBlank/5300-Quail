@@ -209,20 +209,49 @@ QueryResult *SQLExec::insert(const InsertStatement *statement) {
 }
 
 QueryResult *SQLExec::del(const DeleteStatement *statement) {
+	Identifier table_name = statement->tableName;
+	DbRelation& table = SQLExec::tables->get_table(table_name);
 
+	EvalPlan *plan = new EvalPlan(table);
 
-    return new QueryResult("DELETE statement not yet implemented");  // FIXME
+	if(statement->expr != nullptr){
+		plan = new EvalPlan(get_where_conjunction(statement->expr), plan);
+	}
+
+	EvalPlan *optimized = plan->optimize();
+	EvalPipeline pipe = optimized->pipeline();
+
+	auto index_names = SQLExec::indices->get_index_names(table_name);
+
+	Handles *handles = pipe.second;
+
+	for(auto const& handle: *handles){
+		for(auto const& index_name: index_names){
+			DbIndex& index = SQLExec::indices->get_index(table_name, index_name);
+			index.del(handle);
+		}
+		table.del(handle);
+	}
+
+	u_long n = handles->size();
+
+	string retStmt = "Deleted " + to_string(n) + " row(s) from " + table_name;
+
+	if(index_names.size() > 0){
+		retStmt += string(" and ") + to_string(index_names.size()) + " indices.";
+	}
+
+	return new QueryResult(retStmt);
+
 }
 
 QueryResult *SQLExec::select(const SelectStatement *statement) {
-
 
     ColumnNames *cn = new ColumnNames();
 	ColumnAttributes *cas = new ColumnAttributes();
 	DbRelation& table = tables->get_table(statement->fromTable->name);
 
 	EvalPlan *plan = new EvalPlan(table);
-
 
 	if (statement->whereClause != nullptr)
 	{
@@ -231,13 +260,11 @@ QueryResult *SQLExec::select(const SelectStatement *statement) {
 
 	exprnList* select_list = statement->selectList; //TYPEDEF defined at the top
 
-	if (select_list->at(0)->type == hsql::kExprStar)
-	{   //for SELECT * queries
+	//for SELECT * queries
+	if (select_list->at(0)->type == hsql::kExprStar) {   
 		*cn = table.get_column_names();
 		plan = new EvalPlan(EvalPlan::ProjectAll, plan); //ProjectAll
-	}
-
-	else { //for SELECT specific cols           
+	} else { //for SELECT specific cols           
 		for (auto const element : *select_list)
 			cn->push_back(element->name);  
 
@@ -251,7 +278,7 @@ QueryResult *SQLExec::select(const SelectStatement *statement) {
 
 	std::string message = "Successfully returned " + std::to_string(rows->size()) + " rows.";
 
-	return new QueryResult(cn, cas, rows, message);  // FIXME
+	return new QueryResult(cn, cas, rows, message);
 }
 
 
