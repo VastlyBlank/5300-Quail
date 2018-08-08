@@ -94,6 +94,17 @@ public:
 	virtual RecordIDs* ids() const = 0;
 
 	/**
+	 * Delete all the records from this block.
+	 */
+	virtual void clear() = 0;
+
+ 	/**
+	 * Get number of active (undeleted) records in this block.
+	 * @returns  number of active records
+	 */
+	virtual u_int16_t size() const = 0;
+
+	/**
 	 * Access the whole block's memory as a BerkeleyDB Dbt pointer.
 	 * @returns  Dbt used by this block
 	 */ 

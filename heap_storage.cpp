@@ -116,6 +116,24 @@ void SlottedPage::del(RecordID record_id){
 	put_header();	
 }
 
+// Count of non-deleted records
+u16 SlottedPage::size() const {
+    u16 size, loc;
+    u16 count = 0;
+    for (RecordID record_id = 1; record_id <= this->num_records; record_id++) {
+        get_header(size, loc, record_id);
+        if (loc != 0)
+            count++;
+    }
+    return count;
+}
+
+void SlottedPage::clear() {
+    this->num_records = 0;
+    this->end_free = DbBlock::BLOCK_SZ - 1;
+    put_header();
+}
+
 /**
  * Check if the block has a specific record 
  * @param record_id which record to check
@@ -239,7 +257,7 @@ void SlottedPage::put_header(RecordID id, u16 size, u16 loc){
 
 //returns true if there is enough room in the SlottedPage for the new record of size
 bool SlottedPage::has_room(u16 size) const {
-	u16 free = (this->end_free - ((this->num_records + 1) *4));//subtract the new header room from free space as well
+	u16 free = (this->end_free - ((this->num_records + 2) *4));//subtract the new header room from free space as well
 	return (size <= free);
 }
 
