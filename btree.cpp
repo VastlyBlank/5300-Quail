@@ -13,7 +13,14 @@ BTreeIndex::BTreeIndex(DbRelation& relation, Identifier name, ColumnNames key_co
 }
 
 BTreeIndex::~BTreeIndex() {
-	// FIXME - free up stuff
+if (stat)
+    {
+        delete stat;
+    }
+   if (root)
+    {
+        delete root;
+    }
 }
 
 // Create the index.
@@ -23,7 +30,7 @@ void BTreeIndex::create() {
 
 // Drop the index.
 void BTreeIndex::drop() {
-	// FIXME
+	file.drop();
 }
 
 // Open existing index. Enables: lookup, range, insert, delete, update.
@@ -33,7 +40,12 @@ void BTreeIndex::open() {
 
 // Closes the index. Disables: lookup, range, insert, delete, update.
 void BTreeIndex::close() {
-	// FIXME
+	file.close();
+	delete stat;
+	stat = nullptr;
+	delete root;
+	root = nullptr;
+	closed = true;
 }
 
 // Find all the rows whose columns are equal to key. Assumes key is a dictionary whose keys are the column
