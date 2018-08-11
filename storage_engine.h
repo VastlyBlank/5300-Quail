@@ -249,6 +249,8 @@ public:
 	
 	bool operator==(const Value &other) const;
 	bool operator!=(const Value &other) const;
+	bool operator<(const Value &other) const;
+
 };
 
 // More type aliases
@@ -426,6 +428,10 @@ public:
 	 *                             by column names
 	 */
 	virtual ColumnAttributes* get_column_attributes(const ColumnNames &select_column_names) const;
+
+	virtual Identifier get_table_name() const{
+		return table_name;
+	}
 
 protected:
 	Identifier table_name;

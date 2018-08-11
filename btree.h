@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BTreeNode.h"
+#include "schema_tables.h"
 
 class BTreeIndex : public DbIndex {
 public:

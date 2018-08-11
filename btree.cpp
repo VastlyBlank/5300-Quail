@@ -11,7 +11,9 @@ BTreeIndex::BTreeIndex(DbRelation& relation, Identifier name, ColumnNames key_co
 	if (!unique)
 		throw DbRelationError("BTree index must have unique key");
 	// FIXME - what else?!
+
 }
+
 void BTreeIndex::build_key_profile()
 {
 	ColumnAttributes *cas = new ColumnAttributes;
@@ -100,7 +102,7 @@ void BTreeIndex::close() {
 // Find all the rows whose columns are equal to key. Assumes key is a dictionary whose keys are the column
 // names in the index. Returns a list of row handles.
 Handles* BTreeIndex::lookup(ValueDict* key_dict) const {
-	return _lookup(root, stat->get_height(), tkey(key));
+	return _lookup(root, stat->get_height(), tkey(key_dict));
 	
 	// FIXME
 	//return nullptr;
