@@ -431,6 +431,7 @@ Handle HeapTable::insert(const ValueDict* row){
 	this->open();
 	
 	ValueDict* full_row = validate(row);
+
 	Handle handle = append(full_row);
 	
 	delete full_row;
