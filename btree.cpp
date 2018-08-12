@@ -1,4 +1,7 @@
 #include "btree.h"
+#include <iostream>
+using namespace std;
+
 
 BTreeIndex::BTreeIndex(DbRelation& relation, Identifier name, ColumnNames key_columns, bool unique)
 	: DbIndex(relation, name, key_columns, unique),
@@ -99,6 +102,7 @@ void BTreeIndex::close() {
 	closed = true;
 }
 
+
 // Find all the rows whose columns are equal to key. Assumes key is a dictionary whose keys are the column
 // names in the index. Returns a list of row handles.
 Handles* BTreeIndex::lookup(ValueDict* key_dict) const {
@@ -107,6 +111,7 @@ Handles* BTreeIndex::lookup(ValueDict* key_dict) const {
 	// FIXME
 	//return nullptr;
 }
+
 
 Handles* BTreeIndex::range(ValueDict* min_key, ValueDict* max_key) const {
 	throw DbRelationError("Don't know how to do a range query on Btree index yet");
@@ -174,7 +179,7 @@ Handles* BTreeIndex::_lookup(BTreeNode* node, uint height, const KeyValue* key) 
 	else    //recursive call
 	{
 		BTreeInterior* interior_node = (BTreeInterior*)node;
-		return _lookup(interior_node->find(key, height), height - 1, key);
+		return _lookup(interior_node->find(key, this->stat->get_height()), this->stat->get_height() - 1, key);
 	}
 }
 
@@ -201,3 +206,4 @@ Insertion BTreeIndex::_insert(BTreeNode* node, uint height, const KeyValue* key,
 	}
 	return insertion;
 }
+

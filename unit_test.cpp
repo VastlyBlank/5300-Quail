@@ -542,30 +542,46 @@ void test_heap_table() throw (test_fail_error)
 }
 
 
-
-bool btree_compare(BTreeIndex &idx, HeapTable &table, ValueDict *test){
+bool btree_compare(BTreeIndex &idx, HeapTable &table, ValueDict *test, ValueDict *comp){
 	ValueDicts* result = new ValueDicts;
+	
+	Handles* idx_handles = idx.lookup(test);
 
-	for(Handle& handle : *idx.lookup(test)){
-		result->push_back(table.project(handle));
+	if (!idx_handles->empty()) {
+		for (Handle& h : *idx_handles) {
+			result->push_back(table.project(h));
+		}
+	}
+	
+	//Check if both are empty. If so, they are equal
+	if (result->empty() && comp->empty()) {
+		delete result;
+		return true;
+	}
+	
+	//Check if one is empty and the other is not. If so, they are not equal
+	if (result->empty() || comp->empty()) {
+		delete result;
+		return false;
 	}
 
-	for(ValueDict * result_idx : *result){
-		if(test != result_idx){
-			delete result;
-			cout << "FALSE" << endl;
-			return false;
+	//If neither the above cases, compare the contents
+	for (ValueDict * result_index : *result) {
+		for (auto const& entry : *comp) {
+			if (entry.second != (*result_index)[entry.first]) {
+				delete result;
+				return false;
+			}
 		}
 	}
 
+		
 	delete result;
 	return true;
 }
 
 
 bool test_btree() {
-	cout << "test_btree..." << endl;
-
 	ColumnNames col_names;
 	col_names.push_back("a");
 	col_names.push_back("b");
@@ -576,78 +592,76 @@ bool test_btree() {
 	ca.set_data_type(ColumnAttribute::INT);
 	col_att.push_back(ca);
 
-	HeapTable table1("_test_btree_cpp", col_names, col_att);
-	table1.create();
+	HeapTable table("_test_btree_cpp", col_names, col_att);
+	table.create();
 
-	ValueDict row1;
-	row1["a"] = 12;
-	row1["b"] = 99;
-	table1.insert(&row1);
+	bool result = true;
 
-	ValueDict row2;
-	row2["a"] = 88;
-	row2["b"] = 101;
-	table1.insert(&row2);
+	ValueDict *row1 = new ValueDict;
+	(*row1)["a"] = 12;
+	(*row1)["b"] = 99;
+	table.insert(row1);
 
-	for(uint i = 0; i < 1000; i++){
+	ValueDict *row2 = new ValueDict;
+	(*row2)["a"] = 88;
+	(*row2)["b"] = 191;
+	table.insert(row2);
+
+	for(unsigned int i = 0; i < 1000; i++){
 		ValueDict brow;
 		brow["a"] = i + 100;
 		brow["b"] = -i;
-		table1.insert(&brow);
+		table.insert(&brow);
 	}
 
 	ColumnNames idx_col;
 	idx_col.push_back(col_names.at(0));
+	BTreeIndex idx(table, "foo_index", idx_col, true);
 
-	BTreeIndex idx(table1, "foo_index", idx_col, true);
 	idx.create();
 
 	ValueDict *trow = new ValueDict;
 
 	(*trow)["a"] = 12;
-	if(!btree_compare(idx, table1, trow)){
-		cout << "1 Test failed" << endl;
-		table1.drop();
-		idx.drop();
-		return false;
+	if(!btree_compare(idx, table, trow, row1)){
+		cout << "test 1 failed." << endl;
+		result = false;
 	}
-	cout << "Success 1" << endl;
+
 	(*trow)["a"] = 88;
-	if(!btree_compare(idx, table1, trow)){
-		cout << "2 Test Failed." << endl;
-		table1.drop();
-		idx.drop();
-		return false;
+	if(!btree_compare(idx, table, trow, row2)){
+		cout << "test 2 failed." << endl;
+		result = false;
 	}
 
 	(*trow)["a"] = 6;
-	if(!btree_compare(idx, table1, 	trow)){
-		cout << "3 Test Failed." << endl;
-		table1.drop();
-		idx.drop();		
-		return false;
+	ValueDict *empty_row = new ValueDict;
+	if(!btree_compare(idx, table, trow, empty_row)){
+		cout << "test 3 failed." << endl;
+		result = false;
 	}
 
-	cout << "SUCCESS" << endl;
-
-	for(uint j = 0; j < 10; j++){
-		for(uint i = 0; i < 1000; i++){
+	for(unsigned int j = 0; j < 10; j++){
+		for(unsigned int i = 0; i < 1000; i++){
 			(*trow)["a"] = i + 100;
 			(*trow)["b"] = -i;
-			if(!btree_compare(idx, table1, trow)){
-				cout << "4 Test Failed." << endl;
-				table1.drop();
-				idx.drop();
-				return false;
+			if(!btree_compare(idx, table, trow, trow)){
+				result = false;
 			}
 		}
 	}
-	cout << "Btree Test passed" << endl;
-	table1.drop();
-	idx.drop();
-	return true;
-}
 
+	table.drop();
+	idx.drop();
+
+	delete row1;
+	delete row2;
+	delete trow;
+	delete empty_row;
+
+	return result;
+
+}
 
 
 bool unit_test()
@@ -656,8 +670,10 @@ bool unit_test()
 	test_heap_file();
 	test_heap_table();
 	if(!test_btree()){
-		cout << "btree test failed." << endl;
 		return false;
+	} else {
+		return true;
 	}
-	return true;
+
+
 }

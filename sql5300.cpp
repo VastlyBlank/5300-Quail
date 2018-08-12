@@ -55,11 +55,13 @@ int main(int argc, char *argv[]) {
 		}
 		//test our code up to date
 		if (input == "test") {
+
 			if(!unit_test()){
-				cout << "==========Test Failed===========" << endl;
+				cout << "==========BTree Tests Failed===========" << endl;
 			} else {
-				cout << "==========All test passed===========" << endl;
+				cout << "==========All Tests passed===========" << endl;
 			}
+
 			continue;
 		}
 
