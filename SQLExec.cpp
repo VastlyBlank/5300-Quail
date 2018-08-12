@@ -109,6 +109,9 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) throw(SQLExecError)
     }
 }
 
+/**
+ * Get conjunction of equality predicate from parse tree
+ */
 ValueDict *SQLExec::get_where_conjunction(const hsql::Expr* expr) {
 	ValueDict *where = new ValueDict();
 
@@ -148,7 +151,9 @@ void SQLExec::get_where_conjunction(const hsql::Expr* expr, ValueDict &where) {
 	}
 }
 
-
+/**
+ * Insert row into table
+ */
 QueryResult *SQLExec::insert(const InsertStatement *statement) {
 	
 	Identifier table_name = statement->tableName;
@@ -209,6 +214,9 @@ QueryResult *SQLExec::insert(const InsertStatement *statement) {
     return new QueryResult(retStmt); 
 }
 
+/**
+ * Delete row from table
+ */
 QueryResult *SQLExec::del(const DeleteStatement *statement) {
 	Identifier table_name = statement->tableName;
 	DbRelation& table = SQLExec::tables->get_table(table_name);
@@ -246,6 +254,9 @@ QueryResult *SQLExec::del(const DeleteStatement *statement) {
 
 }
 
+/**
+ * Execute select operation and return result statement
+ */
 QueryResult *SQLExec::select(const SelectStatement *statement) {
 
     ColumnNames *cn = new ColumnNames();
