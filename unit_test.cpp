@@ -585,6 +585,8 @@ bool btree_compare(BTreeIndex &idx, HeapTable &table, ValueDict *test, ValueDict
  * Test for BTree
  */
 bool test_btree() {
+	cout << "test_btree..." << endl;
+
 	ColumnNames col_names;
 	col_names.push_back("a");
 	col_names.push_back("b");
