@@ -6,16 +6,22 @@ INCLUDE_DIR = $(COURSE)/include
 LIB_DIR     = $(COURSE)/lib
 
 # following is a list of all the compiled object files needed to build the sql5300 executable
-OBJS       = sql5300.o heap_storage.o ParseTreeToString.o schema_tables.o SQLExec.o storage_engine.o unit_test.o EvalPlan.o
+OBJS       = sql5300.o heap_storage.o ParseTreeToString.o schema_tables.o SQLExec.o storage_engine.o unit_test.o EvalPlan.o BTreeNode.o btree.o
 
 # Rule for linking to create the executable
 # Note that this is the default target since it is the first non-generic one in the Makefile: $ make
 sql5300: $(OBJS)
 	g++ -L$(LIB_DIR) -o $@ $(OBJS) -ldb_cxx -lsqlparser
 
-sql5300.o : heap_storage.h storage_engine.h
-heap_storage.o : heap_storage.h storage_engine.h
-EvalPlan.o: EvalPlan.h
+BTreeNode.o : $(BTREE_NODE_H)
+EvalPlan.o : $(EVAL_PLAN_H)
+ParseTreeToString.o : ParseTreeToString.h
+SQLExec.o : $(SQLEXEC_H)
+btree.o : $(BTREE_H)
+heap_storage.o : $(HEAP_STORAGE_H)
+schema_tables.o : $(SCHEMA_TABLES_) ParseTreeToString.h
+sql5300.o : $(SQLEXEC_H) ParseTreeToString.h
+storage_engine.o : storage_engine.h
 
 # General rule for compilation
 %.o: %.cpp
