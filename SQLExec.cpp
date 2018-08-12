@@ -153,6 +153,8 @@ QueryResult *SQLExec::insert(const InsertStatement *statement) {
 	
 	Identifier table_name = statement->tableName;
 
+	DbRelation& table = SQLExec::tables->get_table(table_name);
+
 	ColumnNames column_names;
 	ColumnAttributes column_attributes;
 
@@ -188,6 +190,8 @@ QueryResult *SQLExec::insert(const InsertStatement *statement) {
 			}
 		}
 	}
+
+	Handle table_insert = table.insert(&row);
 
 	// Add to index
 	ValueDict where;

@@ -2,7 +2,9 @@
 #include <iostream>
 using namespace std;
 
-
+/**
+ * B+ Tree index
+ */
 BTreeIndex::BTreeIndex(DbRelation& relation, Identifier name, ColumnNames key_columns, bool unique)
 	: DbIndex(relation, name, key_columns, unique),
 	closed(true),
@@ -17,29 +19,38 @@ BTreeIndex::BTreeIndex(DbRelation& relation, Identifier name, ColumnNames key_co
 	build_key_profile();
 }
 
-void BTreeIndex::build_key_profile()
-{
+/**
+ * Identify data types of each component
+ */
+void BTreeIndex::build_key_profile() {
+
 	ColumnAttributes *cas = new ColumnAttributes;
 	cas = relation.get_column_attributes(key_columns);
 
-	for (auto ca : *cas)
+	for (auto ca : *cas) {
 		key_profile.push_back(ca.get_data_type());
+	}
 
 	delete cas;
 }
 
+/**
+ * Deconstructor
+ */
 BTreeIndex::~BTreeIndex() {
-	if (stat)
-	{
+
+	if (stat) {
 		delete stat;
 	}
-	if (root)
-	{
+
+	if (root) {
 		delete root;
 	}
 }
 
-// Create the index.
+/**
+ * Create the index.
+ */
 void BTreeIndex::create() {
 
 	file.create();
@@ -51,15 +62,12 @@ void BTreeIndex::create() {
 	Handles* new_handles = new Handles();
 
 	try {
-
-		for (auto const handle : *handles)
-		{
+		for (auto const handle : *handles){
 			insert(handle);
 			new_handles->push_back(handle);
 		}
 	}
-	catch (DbRelationError)
-	{
+	catch (DbRelationError) {
 		file.drop();
 		throw;
 	}
@@ -70,31 +78,36 @@ void BTreeIndex::create() {
 }
 
 
-// Drop the index.
+/**
+ * Drop the index.
+ */
 void BTreeIndex::drop() {
 	file.drop();
 }
 
-// Open existing index. Enables: lookup, range, insert, delete, update.
+/**
+ * Open existing index. Enables: lookup, range, insert, delete, update.
+ */
 void BTreeIndex::open() {
 
-	if (closed)
-	{
+	if (closed) {
 		file.open();
 		stat = new BTreeStat(file, STAT, key_profile);
 
-		if (stat->get_height() == 1)
+		if (stat->get_height() == 1) {
 			root = new BTreeLeaf(file, stat->get_root_id(), key_profile, false);
-
-		else
+		} else {
 			root = new BTreeInterior(file, stat->get_root_id(), key_profile, false);
+		}
 
 		closed = false;
 	}
 	// FIXME
 }
 
-// Closes the index. Disables: lookup, range, insert, delete, update.
+/**
+ * Closes the index. Disables: lookup, range, insert, delete, update.
+ */
 void BTreeIndex::close() {
 	file.close();
 	delete stat;
@@ -104,53 +117,49 @@ void BTreeIndex::close() {
 	closed = true;
 }
 
+/** 
+ * Find rows where columns are equal to some key. Assumes key is
+ * a dictionary where the keys are column names.
+ * Returns a list of row handles.
+ */
 Handles* BTreeIndex::lookup(ValueDict* key_dict) const {
 	return _lookup(root, stat->get_height(), tkey(key_dict));
 }
 
-
-void BTreeIndex::del(Handle handle) {
-    throw DbRelationError("Don't know how to delete from a BTree index yet");
-	// FIXME: Not in scope of M6
-}
-
+/**
+ * Recursive lookup method
+ */ 
 Handles* BTreeIndex::_lookup(BTreeNode* node, uint height, const KeyValue* key) const {
 
 	Handles* handles = new Handles;
-
-	if (height == 1) //Base Case
-	{
-		try
-		{
+	
+	if (height == 1) {
+		//Base Case
+		try {
 			BTreeLeaf* leaf_node = (BTreeLeaf*)node;
 			handles->push_back(leaf_node->find_eq(key));
 		}
 		catch (std::out_of_range) {}
 
 		return handles;
-	}
-	else    //recursive call
-	{
+	} else {
+		//recursive call
 		BTreeInterior* interior_node = (BTreeInterior*)node;
 		return _lookup(interior_node->find(key, this->stat->get_height()), this->stat->get_height() - 1, key);
 	}
 }
 
-
-Handles* BTreeIndex::range(ValueDict* min_key, ValueDict* max_key) const {
-	throw DbRelationError("Don't know how to do a range query on Btree index yet");
-	// FIXME
-}
-
-// Insert a row with the given handle. Row must exist in relation already.
+/**
+ * Insert a row with the given handle. Row must exist in relation already.
+ */
 void BTreeIndex::insert(Handle handle) {
 
 	KeyValue* kv = tkey(relation.project(handle, &key_columns));
 
 	Insertion split_root = _insert(this->root, this->stat->get_height(), kv, handle);
 
-	if (!BTreeNode::insertion_is_none(split_root))
-	{
+	// If root is split, increase height
+	if (!BTreeNode::insertion_is_none(split_root)) {
 		BlockID rroot = split_root.first;
 		KeyValue boundary = split_root.second;
 
@@ -166,45 +175,66 @@ void BTreeIndex::insert(Handle handle) {
 		stat->save();
 		root = root1;
 	}
-	// FIXME
 }
 
-Insertion BTreeIndex::_insert(BTreeNode* node, uint height, const KeyValue* key, Handle handle)
-{
+/**
+ * Recursive insert.
+ * If a node is split during insert, return new node and boundary
+ * of the split.
+ */
+Insertion BTreeIndex::_insert(BTreeNode* node, uint height, const KeyValue* key, Handle handle) {
+	
 	Insertion insertion;
 
-	if (height == 1) //Base Case
-	{
-
+	//Base Case: Leaf node
+	if (height == 1) {
 		BTreeLeaf* leafNode = (BTreeLeaf*)node;
 		insertion = leafNode->insert(key, handle);
 		leafNode->save();
 		return insertion;
 	}
 
+	// Recursive case
 	BTreeInterior* interior = (BTreeInterior*)node;
 	insertion = _insert(interior->find(key, height), height - 1, key, handle); //Recursive Call
 
-	if (!BTreeNode::insertion_is_none(insertion))
-	{
+	// Split handled automatically, no need to check if node is too full
+	if (!BTreeNode::insertion_is_none(insertion)) {
 		insertion = interior->insert(&insertion.second, insertion.first);
 		interior->save();
 	}
+
 	return insertion;
 }
 
+/**
+ * Gets key values from ValueDict
+ */
 KeyValue *BTreeIndex::tkey(const ValueDict *key) const {
 	KeyValue* kv = new KeyValue();
 
-	for (Identifier k : this->key_columns)
-	{
+	for (Identifier k : this->key_columns) {
 		kv->push_back(key->at(k));
 	}
+
 	return kv;
-	//return nullptr;
-	// FIXME
 }
 
+/**
+ * Not implemented
+ */
+void BTreeIndex::del(Handle handle) {
+    throw DbRelationError("Don't know how to delete from a BTree index yet");
+	// FIXME: Not in scope of M6
+}
+
+/**
+ * Not implemented
+ */
+Handles* BTreeIndex::range(ValueDict* min_key, ValueDict* max_key) const {
+	throw DbRelationError("Don't know how to do a range query on Btree index yet");
+	// FIXME
+}
 
 
 

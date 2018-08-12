@@ -541,8 +541,10 @@ void test_heap_table() throw (test_fail_error)
 	test_heap_table_project(column_names, column_attributes);
 }
 
-
-bool btree_compare(BTreeIndex &idx, HeapTable &table, ValueDict *test, ValueDict *comp){
+/**
+ * Compare method for BTree test
+ */
+bool btree_compare(BTreeIndex &idx, HeapTable &table, ValueDict *test, ValueDict *comp) {
 	ValueDicts* result = new ValueDicts;
 	
 	Handles* idx_handles = idx.lookup(test);
@@ -574,13 +576,14 @@ bool btree_compare(BTreeIndex &idx, HeapTable &table, ValueDict *test, ValueDict
 			}
 		}
 	}
-
 		
 	delete result;
 	return true;
 }
 
-
+/**
+ * Test for BTree
+ */
 bool test_btree() {
 	ColumnNames col_names;
 	col_names.push_back("a");
@@ -636,6 +639,7 @@ bool test_btree() {
 
 	(*trow)["a"] = 6;
 	ValueDict *empty_row = new ValueDict;
+
 	if(!btree_compare(idx, table, trow, empty_row)){
 		cout << "test 3 failed." << endl;
 		result = false;
@@ -661,7 +665,6 @@ bool test_btree() {
 	delete empty_row;
 
 	return result;
-
 }
 
 
