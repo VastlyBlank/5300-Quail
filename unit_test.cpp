@@ -647,6 +647,7 @@ bool test_btree() {
 			(*trow)["b"] = -i;
 			if(!btree_compare(idx, table, trow, trow)){
 				result = false;
+				break;
 			}
 		}
 	}

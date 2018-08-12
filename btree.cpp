@@ -10,11 +10,11 @@ BTreeIndex::BTreeIndex(DbRelation& relation, Identifier name, ColumnNames key_co
 	root(nullptr),
 	file(relation.get_table_name() + "-" + name),
 	key_profile() {
-	build_key_profile();
+
 	if (!unique)
 		throw DbRelationError("BTree index must have unique key");
 	// FIXME - what else?!
-
+	build_key_profile();
 }
 
 void BTreeIndex::build_key_profile()
@@ -27,6 +27,7 @@ void BTreeIndex::build_key_profile()
 
 	delete cas;
 }
+
 BTreeIndex::~BTreeIndex() {
 	if (stat)
 	{
@@ -68,6 +69,7 @@ void BTreeIndex::create() {
 	// FIXME
 }
 
+
 // Drop the index.
 void BTreeIndex::drop() {
 	file.drop();
@@ -102,14 +104,36 @@ void BTreeIndex::close() {
 	closed = true;
 }
 
-
-// Find all the rows whose columns are equal to key. Assumes key is a dictionary whose keys are the column
-// names in the index. Returns a list of row handles.
 Handles* BTreeIndex::lookup(ValueDict* key_dict) const {
 	return _lookup(root, stat->get_height(), tkey(key_dict));
-	
-	// FIXME
-	//return nullptr;
+}
+
+
+void BTreeIndex::del(Handle handle) {
+    throw DbRelationError("Don't know how to delete from a BTree index yet");
+	// FIXME: Not in scope of M6
+}
+
+Handles* BTreeIndex::_lookup(BTreeNode* node, uint height, const KeyValue* key) const {
+
+	Handles* handles = new Handles;
+
+	if (height == 1) //Base Case
+	{
+		try
+		{
+			BTreeLeaf* leaf_node = (BTreeLeaf*)node;
+			handles->push_back(leaf_node->find_eq(key));
+		}
+		catch (std::out_of_range) {}
+
+		return handles;
+	}
+	else    //recursive call
+	{
+		BTreeInterior* interior_node = (BTreeInterior*)node;
+		return _lookup(interior_node->find(key, this->stat->get_height()), this->stat->get_height() - 1, key);
+	}
 }
 
 
@@ -145,44 +169,6 @@ void BTreeIndex::insert(Handle handle) {
 	// FIXME
 }
 
-void BTreeIndex::del(Handle handle) {
-	throw DbRelationError("Don't know how to delete from a BTree index yet");
-	// FIXME
-}
-
-KeyValue *BTreeIndex::tkey(const ValueDict *key) const {
-	KeyValue* kv = new KeyValue();
-
-	for (auto const k : *key)
-	{
-		kv->push_back(k.second);
-	}
-	return kv;
-	//return nullptr;
-	// FIXME
-}
-Handles* BTreeIndex::_lookup(BTreeNode* node, uint height, const KeyValue* key) const {
-
-	Handles* handles = new Handles;
-
-	if (height == 1) //Base Case
-	{
-		try
-		{
-			BTreeLeaf* leaf_node = (BTreeLeaf*)node;
-			handles->push_back(leaf_node->find_eq(key));
-		}
-		catch (std::out_of_range) {}
-
-		return handles;
-	}
-	else    //recursive call
-	{
-		BTreeInterior* interior_node = (BTreeInterior*)node;
-		return _lookup(interior_node->find(key, this->stat->get_height()), this->stat->get_height() - 1, key);
-	}
-}
-
 Insertion BTreeIndex::_insert(BTreeNode* node, uint height, const KeyValue* key, Handle handle)
 {
 	Insertion insertion;
@@ -206,4 +192,19 @@ Insertion BTreeIndex::_insert(BTreeNode* node, uint height, const KeyValue* key,
 	}
 	return insertion;
 }
+
+KeyValue *BTreeIndex::tkey(const ValueDict *key) const {
+	KeyValue* kv = new KeyValue();
+
+	for (Identifier k : this->key_columns)
+	{
+		kv->push_back(key->at(k));
+	}
+	return kv;
+	//return nullptr;
+	// FIXME
+}
+
+
+
 
