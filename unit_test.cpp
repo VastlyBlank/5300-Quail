@@ -8,6 +8,9 @@
 #include "db_cxx.h"
 #include "heap_storage.h"
 
+using namespace std;
+
+
 void test_slotted_page_when_empty()
 {
 	std::cout << "test_slotted_page_when_empty..." << std::endl;
@@ -538,9 +541,123 @@ void test_heap_table() throw (test_fail_error)
 	test_heap_table_project(column_names, column_attributes);
 }
 
-void unit_test()
+
+
+bool btree_compare(BTreeIndex &idx, HeapTable &table, ValueDict *test){
+	ValueDicts* result = new ValueDicts;
+
+	for(Handle& handle : *idx.lookup(test)){
+		result->push_back(table.project(handle));
+	}
+
+	for(ValueDict * result_idx : *result){
+		if(test != result_idx){
+			delete result;
+			cout << "FALSE" << endl;
+			return false;
+		}
+	}
+
+	delete result;
+	return true;
+}
+
+
+bool test_btree() {
+	cout << "test_btree..." << endl;
+
+	ColumnNames col_names;
+	col_names.push_back("a");
+	col_names.push_back("b");
+
+	ColumnAttributes col_att;
+	ColumnAttribute ca(ColumnAttribute::INT);
+	col_att.push_back(ca);
+	ca.set_data_type(ColumnAttribute::INT);
+	col_att.push_back(ca);
+
+	HeapTable table1("_test_btree_cpp", col_names, col_att);
+	table1.create();
+
+	ValueDict row1;
+	row1["a"] = 12;
+	row1["b"] = 99;
+	table1.insert(&row1);
+
+	ValueDict row2;
+	row2["a"] = 88;
+	row2["b"] = 101;
+	table1.insert(&row2);
+
+	for(uint i = 0; i < 1000; i++){
+		ValueDict brow;
+		brow["a"] = i + 100;
+		brow["b"] = -i;
+		table1.insert(&brow);
+	}
+
+	ColumnNames idx_col;
+	idx_col.push_back(col_names.at(0));
+
+	BTreeIndex idx(table1, "foo_index", idx_col, true);
+	idx.create();
+
+	ValueDict *trow = new ValueDict;
+
+	(*trow)["a"] = 12;
+	if(!btree_compare(idx, table1, trow)){
+		cout << "1 Test failed" << endl;
+		table1.drop();
+		idx.drop();
+		return false;
+	}
+	cout << "Success 1" << endl;
+	(*trow)["a"] = 88;
+	if(!btree_compare(idx, table1, trow)){
+		cout << "2 Test Failed." << endl;
+		table1.drop();
+		idx.drop();
+		return false;
+	}
+
+	(*trow)["a"] = 6;
+	if(!btree_compare(idx, table1, 	trow)){
+		cout << "3 Test Failed." << endl;
+		table1.drop();
+		idx.drop();		
+		return false;
+	}
+
+	cout << "SUCCESS" << endl;
+
+	for(uint j = 0; j < 10; j++){
+		for(uint i = 0; i < 1000; i++){
+			(*trow)["a"] = i + 100;
+			(*trow)["b"] = -i;
+			if(!btree_compare(idx, table1, trow)){
+				cout << "4 Test Failed." << endl;
+				table1.drop();
+				idx.drop();
+				return false;
+			}
+		}
+	}
+	cout << "Btree Test passed" << endl;
+	table1.drop();
+	idx.drop();
+	return true;
+}
+
+
+
+bool unit_test()
 {
 	test_slotted_page();
 	test_heap_file();
 	test_heap_table();
+	if(!test_btree()){
+		cout << "btree test failed." << endl;
+		return false;
+	}
+	return true;
 }

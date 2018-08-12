@@ -17,6 +17,7 @@
 #include "ParseTreeToString.h"
 #include "SQLExec.h"
 #include "unit_test.h"
+#include "btree.h"
 
 using namespace std;
 using namespace hsql;
@@ -54,8 +55,11 @@ int main(int argc, char *argv[]) {
 		}
 		//test our code up to date
 		if (input == "test") {
-			unit_test();
-			cout << "==========All test passed===========" << endl;
+			if(!unit_test()){
+				cout << "==========Test Failed===========" << endl;
+			} else {
+				cout << "==========All test passed===========" << endl;
+			}
 			continue;
 		}
 
